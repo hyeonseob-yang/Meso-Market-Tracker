@@ -1,44 +1,24 @@
-'use client';
+import { parse } from "csv-parse/sync";
+import { promises as fs } from "fs";
+import AverageChart from "../components/averageChart";
+import path from "path";
 
-import { Chart as ChartJS, CategoryScale, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from "chart.js";
-import { Line } from "react-chartjs-2";
-import { faker } from '@faker-js/faker';
+export default async function Page() {
+    const filename = path.join(process.cwd(), "public/mesoMarket.csv");
+    const content = await fs.readFile(filename);
+    const parsed = parse(content, {bom: true});
 
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-);
+    const labels = parsed.map((arr) => arr[0]);
 
-export const options = {
-    responsive: true,
-    plugins: {
-        legend: {
-            position: 'top' as const,
-        }
-    },
-    title: {
-        display: true,
-        text: 'Meso Tracker Averages'
-    }
-}
+    const data = {
+        labels,
+        datasets: [
+            {
+                label: 'Average',
+                data: parsed.map((arr) => parseInt(arr[1])),
+            }
+        ]
+    };
 
-const labels = ['January, February', 'March', 'April', 'May', 'June', 'July'];
-
-export const data = {
-    labels,
-    datasets: [
-        {
-            label: 'Average',
-            data: labels.map(() => faker.number.int({ min: 200, max: 600 })),
-        }
-    ]
-}
-
-export default function Page() {
-    return <Line options={options} data={data} />;
+    return <AverageChart data={data}/>;
 }
