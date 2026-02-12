@@ -2,6 +2,8 @@
 
 import { Chart as ChartJS, CategoryScale, Legend, LinearScale, LineElement, PointElement, Title, Tooltip, ChartData } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { AppBar, Toolbar, Typography } from '@mui/material';
+import Wrapper from "./wrapper";
 
 ChartJS.register(
     CategoryScale,
@@ -28,5 +30,9 @@ export const options = {
 }
 
 export default function AverageChart({ data }: {data: ChartData<"line">}) {
-    return <Line options={options} data={data} />;
+    return (
+        <Wrapper>
+            <Line options={options} data={data} />
+        </Wrapper>
+    );
 }

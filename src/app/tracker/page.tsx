@@ -19,6 +19,7 @@ export default async function Page() {
             }
         ]
     };
+    
 
     return <AverageChart data={data}/>;
 }
