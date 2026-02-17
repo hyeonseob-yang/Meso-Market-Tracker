@@ -23,7 +23,7 @@ export default function NavDrawer() {
             <Divider />
             <List>
                 {
-                    [{text: 'Chart', href: '/tracker'}, {text: 'Data Input', href: '/input'}].map(item => (
+                    [{text: 'Chart', href: '/'}, {text: 'Data Input', href: '/input'}].map(item => (
                         <ListItem key={item.text} disablePadding>
                             <Link href={item.href} style={{display: 'inline-block', width: '100%'}}>
                                 <ListItemButton>
