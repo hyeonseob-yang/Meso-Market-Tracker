@@ -1,5 +1,3 @@
-'use client';
-
 import { Divider, Drawer, List, ListItem, ListItemButton, ListItemText, Toolbar } from '@mui/material';
 import Link from 'next/link';
 

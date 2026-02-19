@@ -1,5 +1,3 @@
-'use client';
-
 import { Box, Button, FormControl, FormHelperText, Input, InputLabel } from "@mui/material";
 
 import { postData } from "../data/action";

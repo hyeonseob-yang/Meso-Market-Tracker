@@ -1,5 +1,3 @@
-'use client';
-
 import { AppBar, Box, CssBaseline, Toolbar, Typography } from '@mui/material';
 import NavDrawer from './navDrawer';
 import React from 'react';
