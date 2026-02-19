@@ -10,7 +10,7 @@ export default async function Page() {
             autoComplete="off"
         >   
             <FormControl>
-                <InputLabel htmlFor="date">Date</InputLabel>
+                <InputLabel htmlFor="date" shrink={true}>Date</InputLabel>
                 <Input id="date" name="date" type="datetime-local" aria-describedby="date-desc"></Input>
                 <FormHelperText id="date-desc">Date of when the values were recorded</FormHelperText>
             </FormControl>
