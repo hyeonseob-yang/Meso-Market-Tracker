@@ -49,6 +49,11 @@ export default async function Page() {
                 <Input id="sell-10b" name="sell-10b" type="number" aria-describedby="sell-10b-desc"></Input>
                 <FormHelperText id="sell-10b-desc">Price to instantly sell 10B Mesos in Maple Points per 100M Mesos</FormHelperText>
             </FormControl>
+            <FormControl>
+                <InputLabel htmlFor="notes">Notes</InputLabel>
+                <Input id="notes" name="notes" type="text" aria-describedby="notes-desc"></Input>
+                <FormHelperText id="notes-desc">Custom notes</FormHelperText>
+            </FormControl>
             <Button variant="contained" color="success" type="submit">Record</Button>
         </Box>
     );

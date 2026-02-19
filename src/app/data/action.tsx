@@ -12,6 +12,8 @@ export async function postData(formData: FormData) {
     const sell1b = formData.get("sell-1b");
     const sell10b = formData.get("sell-10b");
 
-    const body = { date, avg, buy100m, buy1b, buy10b, sell100m, sell1b, sell10b };
+    const notes = formData.get("notes");
+
+    const body = { date, avg, buy100m, buy1b, buy10b, sell100m, sell1b, sell10b, notes };
     console.log(JSON.stringify(body));
 }
