@@ -31,6 +31,7 @@ export default function ManualInput() {
           Date of when the values were recorded
         </FormHelperText>
       </FormControl>
+      {/* TODO: Add timezone control--> */}
       <FormControl>
         <InputLabel htmlFor="average">Average</InputLabel>
         <Input
