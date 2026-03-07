@@ -18,12 +18,12 @@ export default function ManualInput() {
       autoComplete="off"
     >
       <FormControl>
-        <InputLabel htmlFor="date" shrink={true}>
+        <InputLabel htmlFor="datetime" shrink={true}>
           Date
         </InputLabel>
         <Input
-          id="date"
-          name="date"
+          id="datetime"
+          name="datetime"
           type="datetime-local"
           aria-describedby="date-desc"
         ></Input>
@@ -32,86 +32,86 @@ export default function ManualInput() {
         </FormHelperText>
       </FormControl>
       <FormControl>
-        <InputLabel htmlFor="avg">Average</InputLabel>
+        <InputLabel htmlFor="average">Average</InputLabel>
         <Input
-          id="avg"
-          name="avg"
+          id="average"
+          name="average"
           type="number"
-          aria-describedby="avg-desc"
+          aria-describedby="average-desc"
         ></Input>
         <FormHelperText id="avg-desc">
           Average cost of Maple Points per 100M Mesos for recent trades
         </FormHelperText>
       </FormControl>
       <FormControl>
-        <InputLabel htmlFor="buy-100m">Buy Buyout 100M</InputLabel>
+        <InputLabel htmlFor="buy100M">Buy Buyout 100M</InputLabel>
         <Input
-          id="buy-100m"
-          name="buy-100m"
+          id="buy100M"
+          name="buy100M"
           type="number"
-          aria-describedby="buy-100m-desc"
+          aria-describedby="buy100M-desc"
         ></Input>
-        <FormHelperText id="buy-100m-desc">
+        <FormHelperText id="buy100M-desc">
           Cost to buyout 100M Mesos in Maple Points per 100M Mesos
         </FormHelperText>
       </FormControl>
       <FormControl>
-        <InputLabel htmlFor="buy-1b">Buy Buyout 1B</InputLabel>
+        <InputLabel htmlFor="buy1B">Buy Buyout 1B</InputLabel>
         <Input
-          id="buy-1b"
-          name="buy-1b"
+          id="buy1B"
+          name="buy1B"
           type="number"
-          aria-describedby="buy-1b-desc"
+          aria-describedby="buy1B-desc"
         ></Input>
-        <FormHelperText id="buy-1b-desc">
+        <FormHelperText id="buy1B-desc">
           Cost to buyout 1B Mesos in Maple Points per 100M Mesos
         </FormHelperText>
       </FormControl>
       <FormControl>
-        <InputLabel htmlFor="buy-10b">Buy Buyout 10B</InputLabel>
+        <InputLabel htmlFor="buy10B">Buy Buyout 10B</InputLabel>
         <Input
-          id="buy-10b"
-          name="buy-10b"
+          id="buy10B"
+          name="buy10B"
           type="number"
-          aria-describedby="buy-10b-desc"
+          aria-describedby="buy10B-desc"
         ></Input>
-        <FormHelperText id="buy-10b-desc">
+        <FormHelperText id="buy10B-desc">
           Cost to buyout 10B Mesos in Maple Points per 100M Mesos
         </FormHelperText>
       </FormControl>
       <FormControl>
-        <InputLabel htmlFor="sell-100m">Sell Buyout 100M</InputLabel>
+        <InputLabel htmlFor="sell100M">Sell Buyout 100M</InputLabel>
         <Input
-          id="sell-100m"
-          name="sell-100m"
+          id="sell100M"
+          name="sell100M"
           type="number"
-          aria-describedby="sell-100m-desc"
+          aria-describedby="sell100M-desc"
         ></Input>
-        <FormHelperText id="sell-100m-desc">
+        <FormHelperText id="sell100M-desc">
           Price to instantly sell 100M Mesos in Maple Points per 100M Mesos
         </FormHelperText>
       </FormControl>
       <FormControl>
-        <InputLabel htmlFor="sell-1b">Sell Buyout 1B</InputLabel>
+        <InputLabel htmlFor="sell1B">Sell Buyout 1B</InputLabel>
         <Input
-          id="sell-1b"
-          name="sell-1b"
+          id="sell1B"
+          name="sell1B"
           type="number"
-          aria-describedby="sell-1b-desc"
+          aria-describedby="sell1B-desc"
         ></Input>
-        <FormHelperText id="sell-1b-desc">
+        <FormHelperText id="sell1B-desc">
           Price to instantly sell 1B Mesos in Maple Points per 100M Mesos
         </FormHelperText>
       </FormControl>
       <FormControl>
-        <InputLabel htmlFor="sell-10b">Sell Buyout 10B</InputLabel>
+        <InputLabel htmlFor="sell10B">Sell Buyout 10B</InputLabel>
         <Input
-          id="sell-10b"
-          name="sell-10b"
+          id="sell10B"
+          name="sell10B"
           type="number"
-          aria-describedby="sell-10b-desc"
+          aria-describedby="sell10B-desc"
         ></Input>
-        <FormHelperText id="sell-10b-desc">
+        <FormHelperText id="sell10B-desc">
           Price to instantly sell 10B Mesos in Maple Points per 100M Mesos
         </FormHelperText>
       </FormControl>
