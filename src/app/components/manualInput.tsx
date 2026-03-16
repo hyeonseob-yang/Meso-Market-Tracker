@@ -102,7 +102,6 @@ export default function ManualInput() {
         </FormControl>
       </Box>
       <FormControl>
-        <InputLabel htmlFor="notes"></InputLabel>
         <TextField
           id="notes"
           name="notes"
