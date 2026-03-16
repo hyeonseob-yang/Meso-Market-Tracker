@@ -40,7 +40,7 @@ export default function ManualInput() {
         ></Input>
       </FormControl>
       <Box
-        sx={{ display: 'flex', flexDirection: 'row', flexGrow: 1, gap: "1em" }}
+        sx={{ display: 'flex', flexDirection: 'row', gap: "1em" }}
       >
         <FormControl>
           <InputLabel htmlFor="buy1B">Buy Buyout 1B</InputLabel>
@@ -72,7 +72,7 @@ export default function ManualInput() {
       </Box>
       
       <Box
-        sx={{ display: 'inline-flex', flexDirection: 'row', "& > :not(style)": { mr: 1 } }}
+        sx={{ display: 'flex', flexDirection: 'row', gap: "1em" }}
       >
        <FormControl>
           <InputLabel htmlFor="sell100M">Sell Buyout 100M</InputLabel>
