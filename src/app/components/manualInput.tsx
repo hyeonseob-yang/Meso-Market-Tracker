@@ -28,9 +28,6 @@ export default function ManualInput() {
           type="datetime-local"
           aria-describedby="date-desc"
         ></Input>
-        <FormHelperText id="date-desc">
-          Date of when the values were recorded
-        </FormHelperText>
       </FormControl>
       {/* TODO: Add timezone control--> */}
       <FormControl>
@@ -41,9 +38,6 @@ export default function ManualInput() {
           type="number"
           aria-describedby="average-desc"
         ></Input>
-        <FormHelperText id="avg-desc">
-          Average cost of Maple Points per 100M Mesos for recent trades
-        </FormHelperText>
       </FormControl>
       <Box
         sx={{ display: 'flex', flexDirection: 'row', flexGrow: 1, gap: "1em" }}
@@ -56,9 +50,6 @@ export default function ManualInput() {
             type="number"
             aria-describedby="buy1B-desc"
           ></Input>
-          <FormHelperText id="buy1B-desc">
-            Cost to buyout 1B Mesos in Maple Points per 100M Mesos
-          </FormHelperText>
         </FormControl>
         <FormControl>
           <InputLabel htmlFor="buy10B">Buy Buyout 10B</InputLabel>
@@ -68,9 +59,6 @@ export default function ManualInput() {
             type="number"
             aria-describedby="buy10B-desc"
           ></Input>
-          <FormHelperText id="buy10B-desc">
-            Cost to buyout 10B Mesos in Maple Points per 100M Mesos
-          </FormHelperText>
         </FormControl>
         <FormControl>
           <InputLabel htmlFor="buy100M">Buy Buyout 100M</InputLabel>
@@ -80,9 +68,6 @@ export default function ManualInput() {
             type="number"
             aria-describedby="buy100M-desc"
           ></Input>
-          <FormHelperText id="buy100M-desc">
-            Cost to buyout 100M Mesos in Maple Points per 100M Mesos
-          </FormHelperText>
         </FormControl>
       </Box>
       
@@ -97,9 +82,6 @@ export default function ManualInput() {
             type="number"
             aria-describedby="sell100M-desc"
           ></Input>
-          <FormHelperText id="sell100M-desc">
-            Price to instantly sell 100M Mesos in Maple Points per 100M Mesos
-          </FormHelperText>
         </FormControl>
         <FormControl>
           <InputLabel htmlFor="sell1B">Sell Buyout 1B</InputLabel>
@@ -109,9 +91,6 @@ export default function ManualInput() {
             type="number"
             aria-describedby="sell1B-desc"
           ></Input>
-          <FormHelperText id="sell1B-desc">
-            Price to instantly sell 1B Mesos in Maple Points per 100M Mesos
-          </FormHelperText>
         </FormControl>
         <FormControl>
           <InputLabel htmlFor="sell10B">Sell Buyout 10B</InputLabel>
@@ -121,9 +100,6 @@ export default function ManualInput() {
             type="number"
             aria-describedby="sell10B-desc"
           ></Input>
-          <FormHelperText id="sell10B-desc">
-            Price to instantly sell 10B Mesos in Maple Points per 100M Mesos
-          </FormHelperText>
         </FormControl>
       </Box>
       <FormControl>
@@ -136,7 +112,6 @@ export default function ManualInput() {
           maxRows={4}
           aria-describedby="notes-desc"
         ></TextField>
-        <FormHelperText id="notes-desc">Custom notes</FormHelperText>
       </FormControl>
       <Button variant="contained" color="success" type="submit">
         Record
