@@ -14,7 +14,12 @@ export default function ManualInput() {
     <Box
       component="form"
       action={postData}
-      sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: "1em" }}
+      sx={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: "1em",
+      }}
       autoComplete="off"
     >
       <FormControl>
@@ -38,9 +43,7 @@ export default function ManualInput() {
           aria-describedby="average-desc"
         ></Input>
       </FormControl>
-      <Box
-        sx={{ display: 'flex', flexDirection: 'row', gap: "1em" }}
-      >
+      <Box sx={{ display: "flex", flexDirection: "row", gap: "1em" }}>
         <FormControl>
           <InputLabel htmlFor="buy1B">Buy Buyout 1B</InputLabel>
           <Input
@@ -69,11 +72,8 @@ export default function ManualInput() {
           ></Input>
         </FormControl>
       </Box>
-      
-      <Box
-        sx={{ display: 'flex', flexDirection: 'row', gap: "1em" }}
-      >
-       <FormControl>
+      <Box sx={{ display: "flex", flexDirection: "row", gap: "1em" }}>
+        <FormControl>
           <InputLabel htmlFor="sell100M">Sell Buyout 100M</InputLabel>
           <Input
             id="sell100M"
