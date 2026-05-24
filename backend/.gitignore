@@ -1,6 +1,9 @@
 # Config Files
 postgres.ini
 
+# Docker secrets
+secrets/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

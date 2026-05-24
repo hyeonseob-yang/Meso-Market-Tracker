@@ -1,4 +1,5 @@
 import json
+import os
 import psycopg2
 from configparser import ConfigParser
 
@@ -51,5 +52,8 @@ def get_config(filename, section):
         key_val_tuple = parser.items(section)
         for item in key_val_tuple:
             config[item[0]] = item[1]
+
+    if os.getenv("DB_HOST"):
+        config["host"] = os.getenv("DB_HOST")
 
     return config

@@ -1,0 +1,74 @@
+services:
+  server:
+    build:
+      context: .
+    ports:
+      - 5000:5000
+    environment:
+      - DB_HOST=db
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres
+    restart: always
+    user: postgres
+    volumes:
+      - db-data:/var/lib/postgresql
+    environment:
+      - POSTGRES_DB=meso-market-database
+      - POSTGRES_USER=backend
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+    secrets:
+      - db_password
+    expose:
+      - 5432
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "backend", "-d", "meso-market-database" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      # Don't require the user to login
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      # Don't require a "master" password after logging in
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    configs:
+      - source: pgadmin-servers
+        target: /pgadmin4/servers.json
+        mode: 0444
+
+volumes:
+  db-data:
+
+configs:
+  pgadmin-servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "Meso Market DB",
+            "Group": "Servers",
+            "Host": "db",
+            "Port": 5432,
+            "MaintenanceDB": "meso-market-database",
+            "Username": "backend",
+            "SSLMode": "prefer"
+          }
+        }
+      }
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
