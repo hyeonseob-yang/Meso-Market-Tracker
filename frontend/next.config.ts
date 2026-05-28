@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  ...(process.env.BUILD_TARGET === "docker" && { output: "standalone" }),
 };
 
 export default nextConfig;

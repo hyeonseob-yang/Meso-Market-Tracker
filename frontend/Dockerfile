@@ -5,6 +5,8 @@ ARG NODE_VERSION=22.20.0
 FROM node:${NODE_VERSION}-alpine AS base
 WORKDIR /usr/src/app
 
+ENV BUILD_TARGET=docker
+
 ################################################################################
 # Install production dependencies only.
 FROM base AS deps
