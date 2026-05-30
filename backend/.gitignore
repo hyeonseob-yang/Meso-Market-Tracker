@@ -1,5 +1,6 @@
 # Config Files
 postgres.ini
+supabase.ini
 
 # Docker secrets
 secrets/

@@ -8,7 +8,7 @@ def insert_price(price):
     sql = """INSERT INTO price(datetime, average, buy100M, buy1B, buy10B, sell100M, sell1B, sell10B, notes) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"""
 
     price_id = None
-    filename = "postgres.ini"
+    filename = "postgres.ini" if os.getenv("environment") == "local" else "supabase.ini"
     section = "meso-market-database"
     config = get_config(filename, section)
 
