@@ -3,7 +3,7 @@
 export async function postData(formData: FormData) {
   console.log(formData);
 
-  const url = "http://backend:5000/price";
+  const url = `${process.env.BACKEND_URL}/price`;
 
   const response = await fetch(url, {
     method: 'POST',
