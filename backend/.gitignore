@@ -1,9 +1,5 @@
 # Config Files
 postgres.ini
-supabase.ini
-
-# Docker secrets
-secrets/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

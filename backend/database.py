@@ -1,16 +1,15 @@
 import json
 import os
 import psycopg2
-from configparser import ConfigParser
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def insert_price(price):
     sql = """INSERT INTO price(datetime, average, buy100M, buy1B, buy10B, sell100M, sell1B, sell10B, notes) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"""
 
     price_id = None
-    filename = "postgres.ini" if os.getenv("environment") == "local" else "supabase.ini"
-    section = "meso-market-database"
-    config = get_config(filename, section)
+    config = get_config()
 
     try:
         with psycopg2.connect(**config) as conn:
@@ -43,17 +42,13 @@ def insert_price(price):
         return price_id
 
 
-def get_config(filename, section):
-    parser = ConfigParser()
-    parser.read(filename)
-
-    config = {}
-    if parser.has_section(section):
-        key_val_tuple = parser.items(section)
-        for item in key_val_tuple:
-            config[item[0]] = item[1]
-
-    if os.getenv("DB_HOST"):
-        config["host"] = os.getenv("DB_HOST")
-
-    return config
+def get_config():
+    return {
+        "host": os.environ["DB_HOST"],
+        "port": os.environ.get("DB_PORT", "6543"),
+        "dbname": os.environ["DB_NAME"],
+        "user": os.environ["DB_USER"],
+        "password": os.environ["DB_PASSWORD"],
+        "sslmode": "require",
+        "connect_timeout": 5,
+    }
