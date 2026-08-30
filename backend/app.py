@@ -1,10 +1,17 @@
 from flask import Flask, request
 from flasgger import Swagger
+from strawberry.flask.views import GraphQLView
 
 from database import insert_price
+from schema import schema
 
 app = Flask(__name__)
 swagger = Swagger(app)
+
+app.add_url_rule(
+    "/graphql",
+    view_func=GraphQLView.as_view("graphql_view", schema=schema),
+)
 
 
 @app.route("/price", methods=["POST"])
