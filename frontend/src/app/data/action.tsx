@@ -11,13 +11,13 @@ export async function postData(formData: FormData) {
 
   const price = {
     datetime: formData.get("datetime") as string,
-    average: parseFloat(formData.get("average") as string),
-    buy100M: parseFloat(formData.get("buy100M") as string),
-    buy1B: parseFloat(formData.get("buy1B") as string),
-    buy10B: parseFloat(formData.get("buy10B") as string),
-    sell100M: parseFloat(formData.get("sell100M") as string),
-    sell1B: parseFloat(formData.get("sell1B") as string),
-    sell10B: parseFloat(formData.get("sell10B") as string),
+    average: parseInt(formData.get("average") as string),
+    buy100M: parseInt(formData.get("buy100M") as string),
+    buy1B: parseInt(formData.get("buy1B") as string),
+    buy10B: parseInt(formData.get("buy10B") as string),
+    sell100M: parseInt(formData.get("sell100M") as string),
+    sell1B: parseInt(formData.get("sell1B") as string),
+    sell10B: parseInt(formData.get("sell10B") as string),
     notes: (formData.get("notes") as string) ?? "",
   };
 

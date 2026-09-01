@@ -6,13 +6,13 @@ from database import insert_price
 @strawberry.input
 class PriceInput:
     datetime: str
-    average: float
-    buy100M: float
-    buy1B: float
-    buy10B: float
-    sell100M: float
-    sell1B: float
-    sell10B: float
+    average: int
+    buy100M: int
+    buy1B: int
+    buy10B: int
+    sell100M: int
+    sell1B: int
+    sell10B: int
     notes: str = ""
 
 

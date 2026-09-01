@@ -14,13 +14,13 @@ mutation RecordPrice($price: PriceInput!) {
 VALID_PRICE_VARS = {
     "price": {
         "datetime": "2024-01-15T12:00:00",
-        "average": 1050.0,
-        "buy100M": 1000.0,
-        "buy1B": 990.0,
-        "buy10B": 980.0,
-        "sell100M": 1100.0,
-        "sell1B": 1090.0,
-        "sell10B": 1080.0,
+        "average": 1050,
+        "buy100M": 1000,
+        "buy1B": 990,
+        "buy10B": 980,
+        "sell100M": 1100,
+        "sell1B": 1090,
+        "sell10B": 1080,
         "notes": "Test entry",
     }
 }
@@ -54,8 +54,8 @@ def test_record_price_calls_insert_with_correct_fields(mock_insert, client):
     gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
     mock_insert.assert_called_once()
     call_arg = mock_insert.call_args[0][0]
-    assert call_arg["average"] == 1050.0
-    assert call_arg["buy100M"] == 1000.0
+    assert call_arg["average"] == 1050
+    assert call_arg["buy100M"] == 1000
     assert call_arg["notes"] == "Test entry"
 
 
