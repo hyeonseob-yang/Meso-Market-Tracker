@@ -1,0 +1,9 @@
+aws_region  = "us-east-1"
+env         = "prod"
+
+# Supabase connection — copy from your Supabase project settings
+db_host     = "db.xxxxxxxxxxxxxxxxxxxx.supabase.co"
+db_port     = "6543"
+db_name     = "postgres"
+db_user     = "postgres"
+db_password = "your-db-password"
