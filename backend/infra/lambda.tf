@@ -1,5 +1,3 @@
-data "aws_caller_identity" "current" {}
-
 # IAM role for the Lambda function
 resource "aws_iam_role" "lambda_exec" {
   name = "meso-market-backend-${var.env}"
@@ -45,15 +43,11 @@ resource "aws_lambda_function" "backend" {
   }
 }
 
-# Lambda Function URL — public HTTPS endpoint, no API Gateway needed
-resource "aws_lambda_function_url" "backend" {
-  function_name      = aws_lambda_function.backend.function_name
-  authorization_type = "NONE"
-
-  cors {
-    allow_origins = ["*"]
-    allow_methods = ["POST", "OPTIONS"]
-    allow_headers = ["Content-Type"]
-    max_age       = 86400
-  }
+# Allow API Gateway to invoke the Lambda function
+resource "aws_lambda_permission" "apigw" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.backend.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.backend.execution_arn}/*/*"
 }
