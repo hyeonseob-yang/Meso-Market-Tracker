@@ -1,9 +1,9 @@
 .claude/settings.local.json
 
 # Terraform
-infra/.terraform/
-infra/.terraform.lock.hcl
-infra/*.tfvars
-infra/*.tfstate
-infra/*.tfstate.backup
-infra/crash.log
+backend/infra/.terraform/
+backend/infra/.terraform.lock.hcl
+backend/infra/*.tfvars
+backend/infra/*.tfstate
+backend/infra/*.tfstate.backup
+backend/infra/crash.log

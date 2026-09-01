@@ -27,7 +27,7 @@ resource "aws_lambda_function" "backend" {
   role          = aws_iam_role.lambda_exec.arn
   package_type  = "Image"
 
-  # After first `terraform apply`, push your image then update this tag and re-apply
+  # After first `terraform apply`, build from ../Dockerfile, push, then re-apply
   image_uri = "${aws_ecr_repository.backend.repository_url}:latest"
 
   timeout      = 30
