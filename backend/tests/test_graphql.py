@@ -35,7 +35,7 @@ def client():
 
 def gql(client, query, variables=None):
     return client.post(
-        "/graphql",
+        "/price",
         data=json.dumps({"query": query, "variables": variables or {}}),
         content_type="application/json",
     )

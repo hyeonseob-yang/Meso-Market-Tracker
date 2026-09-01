@@ -7,7 +7,7 @@ const RECORD_PRICE_MUTATION = `
 `;
 
 export async function postData(formData: FormData) {
-  const url = `${process.env.BACKEND_URL}/graphql`;
+  const url = `${process.env.BACKEND_URL}/price`;
 
   const price = {
     datetime: formData.get("datetime") as string,
