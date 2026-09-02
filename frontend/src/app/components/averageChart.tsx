@@ -3,6 +3,7 @@
 import {
   Chart as ChartJS,
   CategoryScale,
+  Colors,
   Legend,
   LinearScale,
   LineElement,
@@ -15,6 +16,7 @@ import { Line } from "react-chartjs-2";
 
 ChartJS.register(
   CategoryScale,
+  Colors,
   LinearScale,
   PointElement,
   LineElement,
