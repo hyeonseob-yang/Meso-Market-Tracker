@@ -38,8 +38,8 @@ def insert_price(price):
         # TODO: log to CloudWatch
         print(json.dumps(price, indent=4))
         print(error)
-    finally:
-        return price_id
+
+    return price_id
 
 
 def get_config():
