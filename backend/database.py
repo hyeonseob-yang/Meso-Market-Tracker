@@ -1,8 +1,18 @@
+import logging
 import os
+import re
 import psycopg2
 from dotenv import load_dotenv
 
 from models import PriceInput
+
+logger = logging.getLogger(__name__)
+
+_CREDENTIAL_PATTERN = re.compile(r"(password|passwd|pwd)=[^\s;]+", re.IGNORECASE)
+
+
+def _sanitize(msg: str) -> str:
+    return _CREDENTIAL_PATTERN.sub(r"\1=***", msg)
 
 load_dotenv()
 
@@ -51,8 +61,7 @@ def insert_price(price: PriceInput):
 
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
-        # TODO: log to CloudWatch
-        print(error)
+        logger.error("insert_price failed: %s", _sanitize(str(error)))
 
     return price_id
 
