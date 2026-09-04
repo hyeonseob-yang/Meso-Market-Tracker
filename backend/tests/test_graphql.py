@@ -54,9 +54,9 @@ def test_record_price_calls_insert_with_correct_fields(mock_insert, client):
     gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
     mock_insert.assert_called_once()
     call_arg = mock_insert.call_args[0][0]
-    assert call_arg["average"] == 1050
-    assert call_arg["buy100M"] == 1000
-    assert call_arg["notes"] == "Test entry"
+    assert call_arg.average == 1050
+    assert call_arg.buy100M == 1000
+    assert call_arg.notes == "Test entry"
 
 
 def test_health_query(client):

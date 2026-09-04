@@ -1,7 +1,8 @@
-import json
 import os
 import psycopg2
 from dotenv import load_dotenv
+
+from models import PriceInput
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ def _get_conn():
         return _conn
 
 
-def insert_price(price):
+def insert_price(price: PriceInput):
     sql = """INSERT INTO price(datetime, average, buy100M, buy1B, buy10B, sell100M, sell1B, sell10B, notes) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"""
 
     price_id = None
@@ -32,15 +33,15 @@ def insert_price(price):
             cur.execute(
                 sql,
                 (
-                    price["datetime"],
-                    price["average"],
-                    price["buy100M"],
-                    price["buy1B"],
-                    price["buy10B"],
-                    price["sell100M"],
-                    price["sell1B"],
-                    price["sell10B"],
-                    price["notes"],
+                    price.datetime,
+                    price.average,
+                    price.buy100M,
+                    price.buy1B,
+                    price.buy10B,
+                    price.sell100M,
+                    price.sell1B,
+                    price.sell10B,
+                    price.notes,
                 ),
             )
 
@@ -51,7 +52,6 @@ def insert_price(price):
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
         # TODO: log to CloudWatch
-        print(json.dumps(price, indent=4))
         print(error)
 
     return price_id
