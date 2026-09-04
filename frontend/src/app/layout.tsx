@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Meso-Market-Tracker",
-  description: "Analytics for tracking changes of the Meso to Maple Point conversion rate in MapleStory",
+  description: "Analytics for tracking changes in the Meso to Maple Point conversion rate in MapleStory",
 };
 
 export default function RootLayout({
