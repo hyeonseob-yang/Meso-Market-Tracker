@@ -2,8 +2,6 @@ import { AppBar, Box, CssBaseline, Toolbar, Typography } from "@mui/material";
 import NavDrawer from "./navDrawer";
 import React from "react";
 
-import { DRAWER_WIDTH } from "@/lib/constants";
-
 export default function Wrapper({
   children,
 }: Readonly<{
@@ -14,7 +12,7 @@ export default function Wrapper({
       <CssBaseline />
       <AppBar
         position="fixed"
-        sx={{ width: `calc(100% - ${DRAWER_WIDTH}px)`, ml: `${DRAWER_WIDTH}` }}
+        sx={{ width: "calc(100% - var(--drawer-width))", ml: "var(--drawer-width)" }}
       >
         <Toolbar>
           <Typography variant="h6" noWrap component="div">
