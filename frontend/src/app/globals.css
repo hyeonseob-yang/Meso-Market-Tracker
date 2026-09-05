@@ -3,7 +3,6 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --drawer-width: 240px;
 }
 
 @media (prefers-color-scheme: dark) {
