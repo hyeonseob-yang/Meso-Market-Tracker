@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Divider,
   Drawer,
@@ -8,10 +10,15 @@ import {
   Toolbar,
 } from "@mui/material";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const drawerWidth = 240;
 
+const NAV_ITEMS = [{ text: "Chart", href: "/" }];
+
 export default function NavDrawer() {
+  const pathname = usePathname();
+
   return (
     <Drawer
       sx={{
@@ -28,15 +35,13 @@ export default function NavDrawer() {
       <Toolbar />
       <Divider />
       <List>
-        {[
-          { text: "Chart", href: "/" },
-        ].map((item) => (
+        {NAV_ITEMS.map((item) => (
           <ListItem key={item.text} disablePadding>
             <Link
               href={item.href}
               style={{ display: "inline-block", width: "100%" }}
             >
-              <ListItemButton>
+              <ListItemButton selected={pathname === item.href}>
                 <ListItemText>{item.text}</ListItemText>
               </ListItemButton>
             </Link>
