@@ -9,16 +9,16 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 
-const drawerWidth = 240;
+import { DRAWER_WIDTH } from "./constants";
 
 export default function NavDrawer() {
   return (
     <Drawer
       sx={{
-        width: drawerWidth,
+        width: DRAWER_WIDTH,
         flexShrink: 0,
         "& .MuiDrawer-paper": {
-          width: drawerWidth,
+          width: DRAWER_WIDTH,
           boxSizing: "border-box",
         },
       }}
