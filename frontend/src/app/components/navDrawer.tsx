@@ -30,7 +30,6 @@ export default function NavDrawer() {
       <List>
         {[
           { text: "Chart", href: "/" },
-          { text: "Data Input", href: "/input" },
         ].map((item) => (
           <ListItem key={item.text} disablePadding>
             <Link
