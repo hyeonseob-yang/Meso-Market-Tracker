@@ -2,7 +2,7 @@ import { AppBar, Box, CssBaseline, Toolbar, Typography } from "@mui/material";
 import NavDrawer from "./navDrawer";
 import React from "react";
 
-import { DRAWER_WIDTH } from "../../lib/constants";
+import { DRAWER_WIDTH } from "@/lib/constants";
 
 export default function Wrapper({
   children,

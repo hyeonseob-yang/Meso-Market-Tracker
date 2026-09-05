@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 
-import { DRAWER_WIDTH } from "../../lib/constants";
+import { DRAWER_WIDTH } from "@/lib/constants";
 
 export default function NavDrawer() {
   return (
