@@ -1,21 +1,41 @@
-import { parse } from "csv-parse/sync";
-import { promises as fs } from "fs";
 import AverageChart from "./components/averageChart";
-import path from "path";
+
+const PRICES_QUERY = `
+  query {
+    prices {
+      datetime
+      average
+    }
+  }
+`;
+
+async function fetchPrices() {
+  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: PRICES_QUERY }),
+    cache: "no-store",
+  });
+
+  const { data, errors } = await response.json();
+
+  if (errors) {
+    console.error("GraphQL errors:", errors);
+    return [];
+  }
+
+  return data.prices as { datetime: string; average: number }[];
+}
 
 export default async function Page() {
-  const filename = path.join(process.cwd(), "public/mesoMarket.csv");
-  const content = await fs.readFile(filename);
-  const parsed = parse(content, { bom: true });
-
-  const labels = parsed.map((arr) => arr[0]);
+  const prices = await fetchPrices();
 
   const data = {
-    labels,
+    labels: prices.map((p) => p.datetime),
     datasets: [
       {
         label: "Average",
-        data: parsed.map((arr) => parseInt(arr[1])),
+        data: prices.map((p) => p.average),
       },
     ],
   };
