@@ -4,7 +4,7 @@ import re
 import psycopg2
 from dotenv import load_dotenv
 
-from models import PriceInput
+from models import PriceInput, PriceRecord
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,40 @@ def insert_price(price: PriceInput):
         logger.error("insert_price failed: %s", _sanitize(str(error)))
 
     return price_id
+
+
+def get_prices(limit: int = 1000) -> list[PriceRecord]:
+    sql = """
+        SELECT id, datetime, average, buy100M, buy1B, buy10B,
+               sell100M, sell1B, sell10B, notes
+        FROM price
+        ORDER BY datetime DESC
+        LIMIT %s
+    """
+
+    records = []
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (limit,))
+            for row in cur.fetchall():
+                records.append(PriceRecord(
+                    id=row[0],
+                    datetime=str(row[1]),
+                    average=row[2],
+                    buy100M=row[3],
+                    buy1B=row[4],
+                    buy10B=row[5],
+                    sell100M=row[6],
+                    sell1B=row[7],
+                    sell10B=row[8],
+                    notes=row[9] or "",
+                ))
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("get_prices failed: %s", _sanitize(str(error)))
+
+    return records
 
 
 def _get_config():

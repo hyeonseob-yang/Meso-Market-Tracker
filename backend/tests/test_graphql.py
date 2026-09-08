@@ -4,6 +4,37 @@ from unittest.mock import patch
 import pytest
 
 from app import app
+from models import PriceRecord
+
+PRICES_QUERY = """
+query {
+  prices {
+    id
+    datetime
+    average
+    buy100M
+    buy1B
+    buy10B
+    sell100M
+    sell1B
+    sell10B
+    notes
+  }
+}
+"""
+
+SAMPLE_RECORD = PriceRecord(
+    id=1,
+    datetime="2024-01-15T12:00:00",
+    average=1050,
+    buy100M=1000,
+    buy1B=990,
+    buy10B=980,
+    sell100M=1100,
+    sell1B=1090,
+    sell10B=1080,
+    notes="Test entry",
+)
 
 RECORD_PRICE_MUTATION = """
 mutation RecordPrice($price: PriceInput!) {
@@ -57,6 +88,26 @@ def test_record_price_calls_insert_with_correct_fields(mock_insert, client):
     assert call_arg.average == 1050
     assert call_arg.buy100M == 1000
     assert call_arg.notes == "Test entry"
+
+
+@patch("schema.get_prices", return_value=[SAMPLE_RECORD])
+def test_prices_query_returns_records(mock_get, client):
+    response = gql(client, PRICES_QUERY)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    records = body["data"]["prices"]
+    assert len(records) == 1
+    assert records[0]["id"] == 1
+    assert records[0]["average"] == 1050
+    assert records[0]["notes"] == "Test entry"
+
+
+@patch("schema.get_prices", return_value=[])
+def test_prices_query_returns_empty_list(mock_get, client):
+    response = gql(client, PRICES_QUERY)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["prices"] == []
 
 
 def test_health_query(client):
