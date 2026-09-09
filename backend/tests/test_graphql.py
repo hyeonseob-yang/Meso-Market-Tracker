@@ -110,6 +110,36 @@ def test_prices_query_returns_empty_list(mock_get, client):
     assert body["data"]["prices"] == []
 
 
+@patch("schema.insert_price", return_value=1)
+def test_record_price_rejects_invalid_datetime(mock_insert, client):
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "datetime": "not-a-date"}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Invalid datetime" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_rejects_zero_price(mock_insert, client):
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("average" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_rejects_negative_price(mock_insert, client):
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "sell10B": -100}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("sell10B" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
 def test_health_query(client):
     response = gql(client, "{ health }")
     assert response.status_code == 200
