@@ -2,42 +2,66 @@
 
 import {
   Chart as ChartJS,
-  CategoryScale,
   Colors,
   Legend,
   LinearScale,
   LineElement,
   PointElement,
+  TimeScale,
   Title,
   Tooltip,
-  ChartData,
 } from "chart.js";
+import "chartjs-adapter-date-fns";
 import { Line } from "react-chartjs-2";
+import type { ChartData } from "chart.js";
 
 ChartJS.register(
-  CategoryScale,
   Colors,
   LinearScale,
   PointElement,
   LineElement,
+  TimeScale,
   Title,
   Tooltip,
   Legend,
 );
 
-export const options = {
+const options = {
   responsive: true,
   plugins: {
     legend: {
       position: "top" as const,
     },
   },
-  title: {
-    display: true,
-    text: "Meso Tracker Averages",
+  scales: {
+    x: {
+      type: "time" as const,
+      time: {
+        tooltipFormat: "MMM d, yyyy HH:mm",
+        displayFormats: {
+          day: "MMM d",
+          week: "MMM d",
+          month: "MMM yyyy",
+        },
+      },
+      title: {
+        display: true,
+        text: "Date",
+      },
+    },
+    y: {
+      title: {
+        display: true,
+        text: "Price",
+      },
+    },
   },
 };
 
-export default function AverageChart({ data }: { data: ChartData<"line"> }) {
+export default function AverageChart({
+  data,
+}: {
+  data: ChartData<"line", { x: string; y: number }[]>;
+}) {
   return <Line options={options} data={data} />;
 }

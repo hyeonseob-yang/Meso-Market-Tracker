@@ -31,11 +31,10 @@ export default async function Page() {
   const prices = await fetchPrices();
 
   const data = {
-    labels: prices.map((p) => p.datetime),
     datasets: [
       {
         label: "Average",
-        data: prices.map((p) => p.average),
+        data: prices.map((p) => ({ x: p.datetime, y: p.average })),
       },
     ],
   };
