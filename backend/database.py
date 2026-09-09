@@ -71,7 +71,7 @@ def get_prices(limit: int = 1000) -> list[PriceRecord]:
         SELECT id, datetime, average, buy100M, buy1B, buy10B,
                sell100M, sell1B, sell10B, notes
         FROM price
-        ORDER BY datetime DESC
+        ORDER BY datetime ASC
         LIMIT %s
     """
 
