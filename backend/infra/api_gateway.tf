@@ -1,5 +1,5 @@
 resource "aws_apigatewayv2_api" "backend" {
-  name          = "meso-market-backend-${var.env}"
+  name          = "meso-market-backend"
   protocol_type = "HTTP"
 
   cors_configuration {

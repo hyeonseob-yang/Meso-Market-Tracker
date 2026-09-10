@@ -1,5 +1,5 @@
 resource "aws_ecr_repository" "backend" {
-  name                 = "meso-market-backend-${var.env}"
+  name                 = "meso-market-backend"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {

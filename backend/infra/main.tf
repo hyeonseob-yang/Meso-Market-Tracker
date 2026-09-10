@@ -18,4 +18,12 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project     = "meso-market"
+      Environment = var.env
+      ManagedBy   = "terraform"
+    }
+  }
 }
