@@ -19,6 +19,13 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Log group the Lambda writes to. Created up front (with retention) so AWS
+# doesn't auto-create an unmanaged, never-expiring one on first invocation.
+resource "aws_cloudwatch_log_group" "lambda" {
+  name              = "/aws/lambda/meso-market-backend"
+  retention_in_days = var.log_retention_days
+}
+
 # Lambda function (container image)
 resource "aws_lambda_function" "backend" {
   function_name = "meso-market-backend"
@@ -41,6 +48,8 @@ resource "aws_lambda_function" "backend" {
       PORT        = "5000"
     }
   }
+
+  depends_on = [aws_cloudwatch_log_group.lambda]
 }
 
 # Allow API Gateway to invoke the Lambda function

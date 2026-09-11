@@ -39,3 +39,9 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "log_retention_days" {
+  description = "How long to keep Lambda CloudWatch logs"
+  type        = number
+  default     = 14
+}
