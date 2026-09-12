@@ -9,7 +9,7 @@ const PRICES_QUERY = `
   }
 `;
 
-async function fetchPrices() {
+export async function fetchPrices() {
   const response = await fetch(`${process.env.BACKEND_URL}/price`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
