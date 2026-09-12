@@ -17,9 +17,14 @@ async function fetchPrices() {
     cache: "no-store",
   });
 
+  if (!response.ok) {
+    console.error("backend error", response.status, await response.text());
+    return [];
+  }
+
   const { data, errors } = await response.json();
 
-  if (errors) {
+  if (errors || !data?.prices) {
     console.error("GraphQL errors:", errors);
     return [];
   }
