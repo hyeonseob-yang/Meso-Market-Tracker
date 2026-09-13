@@ -1,4 +1,5 @@
 import AverageChart from "./components/averageChart";
+import { logError } from "@/lib/cloudwatch";
 
 const PRICES_QUERY = `
   query {
@@ -18,14 +19,14 @@ export async function fetchPrices() {
   });
 
   if (!response.ok) {
-    console.error("backend error", response.status, await response.text());
+    await logError("backend error", response.status, await response.text());
     return [];
   }
 
   const { data, errors } = await response.json();
 
   if (errors || !data?.prices) {
-    console.error("GraphQL errors:", errors);
+    await logError("GraphQL errors:", errors);
     return [];
   }
 
