@@ -15,7 +15,7 @@ export async function fetchPrices() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query: PRICES_QUERY }),
-    cache: "no-store",
+    next: { revalidate: 60 },
   });
 
   if (!response.ok) {
