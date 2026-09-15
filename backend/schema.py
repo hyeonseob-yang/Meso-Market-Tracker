@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import strawberry
 
@@ -9,11 +9,6 @@ PRICE_FIELDS = ("average", "buy100M", "buy1B", "buy10B", "sell100M", "sell1B", "
 
 
 def _validate_price(price: PriceInput) -> None:
-    try:
-        datetime.fromisoformat(price.datetime)
-    except ValueError:
-        raise ValueError(f"Invalid datetime: '{price.datetime}'. Expected ISO 8601 format.")
-
     for field in PRICE_FIELDS:
         value = getattr(price, field)
         if value <= 0:
@@ -25,7 +20,8 @@ class Mutation:
     @strawberry.mutation
     def record_price(self, price: PriceInput) -> str:
         _validate_price(price)
-        price_id = insert_price(price)
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        price_id = insert_price(price, occurred_at)
         return str(price_id)
 
 

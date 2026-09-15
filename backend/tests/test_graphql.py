@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -44,7 +45,6 @@ mutation RecordPrice($price: PriceInput!) {
 
 VALID_PRICE_VARS = {
     "price": {
-        "datetime": "2024-01-15T12:00:00",
         "average": 1050,
         "buy100M": 1000,
         "buy1B": 990,
@@ -90,6 +90,27 @@ def test_record_price_calls_insert_with_correct_fields(mock_insert, client):
     assert call_arg.notes == "Test entry"
 
 
+@patch("schema.insert_price", return_value=42)
+def test_record_price_stamps_server_time(mock_insert, client):
+    before = datetime.now(timezone.utc)
+    gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
+    after = datetime.now(timezone.utc)
+
+    occurred_at = mock_insert.call_args[0][1]
+    parsed = datetime.fromisoformat(occurred_at)
+    assert before <= parsed <= after
+
+
+def test_price_input_rejects_client_supplied_datetime(client):
+    # PriceInput has no `datetime` field - the server stamps it, not the
+    # client - so trying to send one is a schema error, not a value error.
+    vars = {"price": {**VALID_PRICE_VARS["price"], "datetime": "2024-01-15T12:00:00"}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("datetime" in e["message"] for e in body["errors"])
+
+
 @patch("schema.get_prices", return_value=[SAMPLE_RECORD])
 def test_prices_query_returns_records(mock_get, client):
     response = gql(client, PRICES_QUERY)
@@ -108,16 +129,6 @@ def test_prices_query_returns_empty_list(mock_get, client):
     assert response.status_code == 200
     body = json.loads(response.data)
     assert body["data"]["prices"] == []
-
-
-@patch("schema.insert_price", return_value=1)
-def test_record_price_rejects_invalid_datetime(mock_insert, client):
-    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "datetime": "not-a-date"}}
-    response = gql(client, RECORD_PRICE_MUTATION, vars)
-    body = json.loads(response.data)
-    assert body["data"] is None
-    assert any("Invalid datetime" in e["message"] for e in body["errors"])
-    mock_insert.assert_not_called()
 
 
 @patch("schema.insert_price", return_value=1)

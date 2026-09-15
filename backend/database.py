@@ -32,7 +32,7 @@ def _get_conn():
         return _conn
 
 
-def insert_price(price: PriceInput):
+def insert_price(price: PriceInput, occurred_at: str):
     sql = """INSERT INTO price(datetime, average, buy100M, buy1B, buy10B, sell100M, sell1B, sell10B, notes) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"""
 
     price_id = None
@@ -43,7 +43,7 @@ def insert_price(price: PriceInput):
             cur.execute(
                 sql,
                 (
-                    price.datetime,
+                    occurred_at,
                     price.average,
                     price.buy100M,
                     price.buy1B,
