@@ -15,3 +15,20 @@ strawberry-graphql[flask]==0.324.4
 pytest==9.1.1
 pytokens==0.4.1
 Werkzeug==3.1.6
+
+# Time-series forecasting (sktime + statsmodels backend)
+cloudpickle==3.1.2
+formulaic==1.2.2
+interface_meta==2.0.1
+joblib==1.6.0
+narwhals==2.26.0
+numpy==2.5.3
+pandas==3.0.6
+patsy==1.0.3
+scikit-base==1.1.1
+scikit-learn==1.9.1
+scipy==1.18.1
+sktime==1.2.0
+statsmodels==0.15.0
+threadpoolctl==3.7.0
+wrapt==2.5.0
