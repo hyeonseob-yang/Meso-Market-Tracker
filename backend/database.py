@@ -35,8 +35,6 @@ def _get_conn():
 def insert_price(price: PriceInput, occurred_at: str):
     sql = """INSERT INTO price(datetime, average, buy100M, buy1B, buy10B, sell100M, sell1B, sell10B, notes) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"""
 
-    price_id = None
-
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
@@ -56,14 +54,15 @@ def insert_price(price: PriceInput, occurred_at: str):
             )
 
             rows = cur.fetchone()
-            if rows:
-                price_id = rows[0]
-
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("insert_price failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to record price right now.") from error
 
-    return price_id
+    if not rows:
+        raise RuntimeError("Unable to record price right now.")
+
+    return rows[0]
 
 
 def get_prices(limit: int = 1000) -> list[PriceRecord]:
@@ -75,14 +74,12 @@ def get_prices(limit: int = 1000) -> list[PriceRecord]:
         LIMIT %s
     """
 
-    records = []
-
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(sql, (limit,))
-            for row in cur.fetchall():
-                records.append(PriceRecord(
+            return [
+                PriceRecord(
                     id=row[0],
                     datetime=str(row[1]),
                     average=row[2],
@@ -93,11 +90,12 @@ def get_prices(limit: int = 1000) -> list[PriceRecord]:
                     sell1B=row[7],
                     sell10B=row[8],
                     notes=row[9] or "",
-                ))
+                )
+                for row in cur.fetchall()
+            ]
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("get_prices failed: %s", _sanitize(str(error)))
-
-    return records
+        raise RuntimeError("Unable to fetch prices right now.") from error
 
 
 def _get_config():

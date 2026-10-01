@@ -131,6 +131,26 @@ def test_prices_query_returns_empty_list(mock_get, client):
     assert body["data"]["prices"] == []
 
 
+@patch("schema.get_prices", side_effect=RuntimeError("Unable to fetch prices right now."))
+def test_prices_query_surfaces_database_failure(mock_get, client):
+    # A DB outage must not look like "zero prices" to the client - it
+    # should come back as an explicit error, not a quiet empty success.
+    response = gql(client, PRICES_QUERY)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Unable to fetch prices" in e["message"] for e in body["errors"])
+
+
+@patch("schema.insert_price", side_effect=RuntimeError("Unable to record price right now."))
+def test_record_price_surfaces_database_failure(mock_insert, client):
+    response = gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Unable to record price" in e["message"] for e in body["errors"])
+
+
 @patch("schema.insert_price", return_value=1)
 def test_record_price_rejects_zero_price(mock_insert, client):
     vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}
