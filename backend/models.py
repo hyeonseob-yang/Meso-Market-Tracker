@@ -16,10 +16,11 @@ class _PriceFields:
 
 @strawberry.input
 class PriceInput(_PriceFields):
-    # No `datetime` here on purpose - the server stamps it at insert time
-    # (see schema.record_price), not the client. See PriceRecord for the
-    # stored/output shape, which does carry it.
     notes: str = ""  # optional for input only
+    # Optional - if omitted, the server stamps current UTC time at insert
+    # (see schema.record_price). Pass it explicitly to keep a reading's
+    # original time across a retry, or when backfilling from a local backup.
+    datetime: str | None = None
 
 
 @strawberry.type

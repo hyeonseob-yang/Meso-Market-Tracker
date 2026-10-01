@@ -91,7 +91,7 @@ def test_record_price_calls_insert_with_correct_fields(mock_insert, client):
 
 
 @patch("schema.insert_price", return_value=42)
-def test_record_price_stamps_server_time(mock_insert, client):
+def test_record_price_stamps_server_time_when_datetime_omitted(mock_insert, client):
     before = datetime.now(timezone.utc)
     gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
     after = datetime.now(timezone.utc)
@@ -101,14 +101,23 @@ def test_record_price_stamps_server_time(mock_insert, client):
     assert before <= parsed <= after
 
 
-def test_price_input_rejects_client_supplied_datetime(client):
-    # PriceInput has no `datetime` field - the server stamps it, not the
-    # client - so trying to send one is a schema error, not a value error.
-    vars = {"price": {**VALID_PRICE_VARS["price"], "datetime": "2024-01-15T12:00:00"}}
+@patch("schema.insert_price", return_value=42)
+def test_record_price_uses_client_supplied_datetime(mock_insert, client):
+    # Lets a reading keep its original time across a retry, or when
+    # backfilling from a local backup, instead of always being "now".
+    vars = {"price": {**VALID_PRICE_VARS["price"], "datetime": "2024-01-15T12:00:00+00:00"}}
+    gql(client, RECORD_PRICE_MUTATION, vars)
+    assert mock_insert.call_args[0][1] == "2024-01-15T12:00:00+00:00"
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_rejects_invalid_datetime(mock_insert, client):
+    vars = {"price": {**VALID_PRICE_VARS["price"], "datetime": "not-a-date"}}
     response = gql(client, RECORD_PRICE_MUTATION, vars)
     body = json.loads(response.data)
     assert body["data"] is None
-    assert any("datetime" in e["message"] for e in body["errors"])
+    assert any("Invalid datetime" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
 
 
 @patch("schema.get_prices", return_value=[SAMPLE_RECORD])
