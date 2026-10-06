@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchPrices } from "./actions";
+import { fetchPrices, fetchPricesFresh } from "./actions";
 
 describe("fetchPrices", () => {
   afterEach(() => {
@@ -56,5 +56,39 @@ describe("fetchPrices", () => {
       since: "2026-09-01T00:00:00.000Z",
       until: "2026-10-01T00:00:00.000Z",
     });
+  });
+
+  it("caches for an hour, matching the Collector's hourly post cadence", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: { prices: [] } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchPrices();
+
+    expect(fetchMock.mock.calls[0][1].next).toEqual({ revalidate: 3600 });
+    expect(fetchMock.mock.calls[0][1].cache).toBeUndefined();
+  });
+});
+
+describe("fetchPricesFresh", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("never caches - for the explicit, infrequent window-button re-fetch", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: { prices: [] } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchPricesFresh();
+
+    expect(fetchMock.mock.calls[0][1].cache).toBe("no-store");
+    expect(fetchMock.mock.calls[0][1].next).toBeUndefined();
   });
 });
