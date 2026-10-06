@@ -17,7 +17,7 @@ import "chartjs-adapter-date-fns";
 import { Line } from "react-chartjs-2";
 import type { ChartData } from "chart.js";
 
-import { fetchPricesFresh } from "../actions";
+import { fetchPrices } from "../actions";
 
 ChartJS.register(
   Colors,
@@ -95,7 +95,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
     const until = new Date();
     const since = window.since?.(until);
     startTransition(async () => {
-      setPrices(await fetchPricesFresh(since?.toISOString(), until.toISOString()));
+      setPrices(await fetchPrices(since?.toISOString(), until.toISOString()));
     });
   }
 

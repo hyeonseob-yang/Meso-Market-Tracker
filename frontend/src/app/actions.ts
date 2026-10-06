@@ -11,16 +11,21 @@ const PRICES_QUERY = `
   }
 `;
 
-async function runPricesQuery(
-  since: string | undefined,
-  until: string | undefined,
-  cacheOptions: Pick<RequestInit, "cache" | "next">,
-) {
+// Cached for an hour - the Collector only posts hourly, so that's not a
+// compromise, it's matched to how often fresh data can even exist. Confirmed
+// (2026-10-06, via a throwaway route handler + Lambda invocation counts)
+// that Next's fetch cache keys on the POST body, so different since/until
+// windows get their own cache entries rather than colliding - one function
+// serves both the page's default load and the window-selector buttons.
+// Genuine freshness (a new price landing) is handled separately by
+// revalidatePath, called from the backend right after a successful insert -
+// see /api/revalidate - rather than by shortening this window.
+export async function fetchPrices(since?: string, until?: string) {
   const response = await fetch(`${process.env.BACKEND_URL}/price`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query: PRICES_QUERY, variables: { since, until } }),
-    ...cacheOptions,
+    next: { revalidate: 3600 },
   });
 
   if (!response.ok) {
@@ -36,19 +41,4 @@ async function runPricesQuery(
   }
 
   return data.prices as { datetime: string; average: number }[];
-}
-
-// For the page's default load. The Collector only posts hourly, so caching
-// any more aggressively than that just adds backend load for no freshness
-// benefit - an hour-aligned cache is actually *correct* here, not a
-// compromise.
-export async function fetchPrices(since?: string, until?: string) {
-  return runPricesQuery(since, until, { next: { revalidate: 3600 } });
-}
-
-// For the window-selector buttons: a deliberate, infrequent user action, not
-// a per-visit hot path - always fresh, and sidesteps ever having to reason
-// about whether the cache correctly keys on since/until.
-export async function fetchPricesFresh(since?: string, until?: string) {
-  return runPricesQuery(since, until, { cache: "no-store" });
 }

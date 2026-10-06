@@ -40,12 +40,14 @@ resource "aws_lambda_function" "backend" {
 
   environment {
     variables = {
-      DB_HOST     = var.db_host
-      DB_PORT     = var.db_port
-      DB_NAME     = var.db_name
-      DB_USER     = var.db_user
-      DB_PASSWORD = var.db_password
-      PORT        = "5000"
+      DB_HOST           = var.db_host
+      DB_PORT           = var.db_port
+      DB_NAME           = var.db_name
+      DB_USER           = var.db_user
+      DB_PASSWORD       = var.db_password
+      PORT              = "5000"
+      FRONTEND_URL      = var.frontend_url
+      REVALIDATE_SECRET = var.revalidate_secret
     }
   }
 

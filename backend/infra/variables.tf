@@ -45,3 +45,14 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "frontend_url" {
+  description = "Deployed Vercel URL, used to call /api/revalidate after a successful recordPrice"
+  type        = string
+}
+
+variable "revalidate_secret" {
+  description = "Shared secret for the frontend's /api/revalidate endpoint (must match REVALIDATE_SECRET in Vercel)"
+  type        = string
+  sensitive   = true
+}
