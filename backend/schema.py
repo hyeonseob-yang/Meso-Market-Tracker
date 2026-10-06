@@ -8,12 +8,17 @@ from models import PriceInput, PriceRecord
 PRICE_FIELDS = ("average", "buy100M", "buy1B", "buy10B", "sell100M", "sell1B", "sell10B")
 
 
+def _parse_datetime_arg(name: str, value: str | None) -> None:
+    if value is None:
+        return
+    try:
+        datetime.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"Invalid {name}: '{value}'. Expected ISO 8601 format.")
+
+
 def _validate_price(price: PriceInput) -> None:
-    if price.datetime is not None:
-        try:
-            datetime.fromisoformat(price.datetime)
-        except ValueError:
-            raise ValueError(f"Invalid datetime: '{price.datetime}'. Expected ISO 8601 format.")
+    _parse_datetime_arg("datetime", price.datetime)
 
     for field in PRICE_FIELDS:
         value = getattr(price, field)
@@ -38,8 +43,12 @@ class Query:
         return "ok"
 
     @strawberry.field
-    def prices(self, limit: int = 1000) -> list[PriceRecord]:
-        return get_prices(limit)
+    def prices(
+        self, since: str | None = None, until: str | None = None, limit: int = 10000
+    ) -> list[PriceRecord]:
+        _parse_datetime_arg("since", since)
+        _parse_datetime_arg("until", until)
+        return get_prices(limit, since, until)
 
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

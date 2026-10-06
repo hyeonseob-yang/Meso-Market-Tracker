@@ -65,19 +65,33 @@ def insert_price(price: PriceInput, occurred_at: str):
     return rows[0]
 
 
-def get_prices(limit: int = 1000) -> list[PriceRecord]:
-    sql = """
+def get_prices(
+    limit: int = 10000, since: str | None = None, until: str | None = None
+) -> list[PriceRecord]:
+    conditions = []
+    params: list = []
+    if since is not None:
+        conditions.append("datetime >= %s")
+        params.append(since)
+    if until is not None:
+        conditions.append("datetime <= %s")
+        params.append(until)
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    sql = f"""
         SELECT id, datetime, average, buy100M, buy1B, buy10B,
                sell100M, sell1B, sell10B, notes
         FROM price
+        {where_clause}
         ORDER BY datetime ASC
         LIMIT %s
     """
+    params.append(limit)
 
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
-            cur.execute(sql, (limit,))
+            cur.execute(sql, params)
             return [
                 PriceRecord(
                     id=row[0],

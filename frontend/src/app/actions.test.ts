@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchPrices } from "./page";
+import { fetchPrices } from "./actions";
 
 describe("fetchPrices", () => {
   afterEach(() => {
@@ -39,5 +39,22 @@ describe("fetchPrices", () => {
     );
 
     await expect(fetchPrices()).resolves.toEqual([]);
+  });
+
+  it("sends since/until as GraphQL variables when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: { prices: [] } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchPrices("2026-09-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z");
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.variables).toEqual({
+      since: "2026-09-01T00:00:00.000Z",
+      until: "2026-10-01T00:00:00.000Z",
+    });
   });
 });

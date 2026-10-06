@@ -1,49 +1,12 @@
+import { subDays } from "date-fns";
+
 import AverageChart from "./components/averageChart";
-import { logError } from "@/lib/cloudwatch";
-
-const PRICES_QUERY = `
-  query {
-    prices {
-      datetime
-      average
-    }
-  }
-`;
-
-export async function fetchPrices() {
-  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: PRICES_QUERY }),
-    next: { revalidate: 60 },
-  });
-
-  if (!response.ok) {
-    await logError("backend error", response.status, await response.text());
-    return [];
-  }
-
-  const { data, errors } = await response.json();
-
-  if (errors || !data?.prices) {
-    await logError("GraphQL errors:", errors);
-    return [];
-  }
-
-  return data.prices as { datetime: string; average: number }[];
-}
+import { fetchPrices } from "./actions";
 
 export default async function Page() {
-  const prices = await fetchPrices();
+  const until = new Date();
+  const since = subDays(until, 30);
+  const prices = await fetchPrices(since.toISOString(), until.toISOString());
 
-  const data = {
-    datasets: [
-      {
-        label: "Average",
-        data: prices.map((p) => ({ x: p.datetime, y: p.average })),
-      },
-    ],
-  };
-
-  return <AverageChart data={data} />;
+  return <AverageChart initialPrices={prices} />;
 }

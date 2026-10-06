@@ -140,6 +140,29 @@ def test_prices_query_returns_empty_list(mock_get, client):
     assert body["data"]["prices"] == []
 
 
+RANGED_PRICES_QUERY = """
+query Prices($since: String, $until: String) {
+  prices(since: $since, until: $until) {
+    id
+  }
+}
+"""
+
+
+@patch("schema.get_prices", return_value=[])
+def test_prices_query_passes_since_and_until_through(mock_get, client):
+    vars = {"since": "2026-09-01T00:00:00+00:00", "until": "2026-10-01T00:00:00+00:00"}
+    gql(client, RANGED_PRICES_QUERY, vars)
+    mock_get.assert_called_once_with(10000, vars["since"], vars["until"])
+
+
+def test_prices_query_rejects_invalid_since(client):
+    response = gql(client, RANGED_PRICES_QUERY, {"since": "not-a-date"})
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Invalid since" in e["message"] for e in body["errors"])
+
+
 @patch("schema.get_prices", side_effect=RuntimeError("Unable to fetch prices right now."))
 def test_prices_query_surfaces_database_failure(mock_get, client):
     # A DB outage must not look like "zero prices" to the client - it

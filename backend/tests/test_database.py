@@ -50,3 +50,44 @@ def test_insert_price_returns_id_on_success():
 
     with patch("database._get_conn", return_value=conn):
         assert insert_price(VALID_PRICE, "2026-09-30T00:00:00+00:00") == 42
+
+
+def test_get_prices_with_no_range_has_no_where_clause():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = []
+
+    with patch("database._get_conn", return_value=conn):
+        get_prices()
+
+    sql, params = cur.execute.call_args[0]
+    assert "WHERE" not in sql
+    assert params == [10000]
+
+
+def test_get_prices_filters_by_since_and_until():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = []
+
+    with patch("database._get_conn", return_value=conn):
+        get_prices(since="2026-09-01T00:00:00+00:00", until="2026-10-01T00:00:00+00:00")
+
+    sql, params = cur.execute.call_args[0]
+    assert "datetime >= %s" in sql
+    assert "datetime <= %s" in sql
+    assert params == ["2026-09-01T00:00:00+00:00", "2026-10-01T00:00:00+00:00", 10000]
+
+
+def test_get_prices_filters_by_since_only():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = []
+
+    with patch("database._get_conn", return_value=conn):
+        get_prices(since="2026-09-01T00:00:00+00:00")
+
+    sql, params = cur.execute.call_args[0]
+    assert "datetime >= %s" in sql
+    assert "datetime <= %s" not in sql
+    assert params == ["2026-09-01T00:00:00+00:00", 10000]
