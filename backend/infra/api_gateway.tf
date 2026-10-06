@@ -28,11 +28,15 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
-  # A backstop against volume abuse of recordPrice independent of whether a
-  # caller has a valid secret - this project's real traffic is nowhere near
-  # these numbers.
+  # A backstop against volume abuse, shared across all callers (API Gateway
+  # throttling here has no concept of "per visitor" - see Usage Plans/API
+  # keys for that, not set up). Sized to comfortably absorb several real
+  # users clicking through the date-window buttons at once - a dozen people
+  # each firing 5 requests in a burst is ~60, well under the burst limit -
+  # while still capping a genuinely abusive flood, which needs rates far
+  # beyond anything human clicking produces.
   default_route_settings {
-    throttling_burst_limit = 20
-    throttling_rate_limit  = 10
+    throttling_burst_limit = 100
+    throttling_rate_limit  = 30
   }
 }
