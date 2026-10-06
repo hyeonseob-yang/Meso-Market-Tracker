@@ -58,7 +58,7 @@ describe("fetchPrices", () => {
     });
   });
 
-  it("caches for an hour, matching the Collector's hourly post cadence", async () => {
+  it("caches for 5 minutes", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -68,7 +68,7 @@ describe("fetchPrices", () => {
 
     await fetchPrices();
 
-    expect(fetchMock.mock.calls[0][1].next).toEqual({ revalidate: 3600 });
+    expect(fetchMock.mock.calls[0][1].next).toEqual({ revalidate: 300 });
     expect(fetchMock.mock.calls[0][1].cache).toBeUndefined();
   });
 });

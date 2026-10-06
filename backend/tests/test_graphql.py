@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import pytest
 
-import schema
 from app import app
 from models import PriceRecord
 
@@ -89,21 +88,6 @@ def test_record_price_calls_insert_with_correct_fields(mock_insert, client):
     assert call_arg.average == 1050
     assert call_arg.buy100M == 1000
     assert call_arg.notes == "Test entry"
-
-
-@patch("schema._trigger_revalidation")
-@patch("schema.insert_price", return_value=42)
-def test_record_price_triggers_revalidation_on_success(mock_insert, mock_revalidate, client):
-    gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
-    mock_revalidate.assert_called_once()
-
-
-@patch("schema._trigger_revalidation")
-@patch("schema.insert_price", return_value=1)
-def test_record_price_does_not_revalidate_on_rejected_input(mock_insert, mock_revalidate, client):
-    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}
-    gql(client, RECORD_PRICE_MUTATION, vars)
-    mock_revalidate.assert_not_called()
 
 
 @patch("schema.insert_price", return_value=42)
@@ -224,31 +208,3 @@ def test_health_query(client):
     assert response.status_code == 200
     body = json.loads(response.data)
     assert body["data"]["health"] == "ok"
-
-
-class TestTriggerRevalidation:
-    """Unit tests for schema._trigger_revalidation itself, independent of
-    the GraphQL layer - the request it builds, and that it never raises."""
-
-    def test_does_nothing_without_config(self, monkeypatch):
-        monkeypatch.delenv("FRONTEND_URL", raising=False)
-        monkeypatch.delenv("REVALIDATE_SECRET", raising=False)
-        with patch("urllib.request.urlopen") as mock_urlopen:
-            schema._trigger_revalidation()
-            mock_urlopen.assert_not_called()
-
-    def test_posts_to_the_configured_frontend_with_the_secret_header(self, monkeypatch):
-        monkeypatch.setenv("FRONTEND_URL", "https://example.vercel.app/")
-        monkeypatch.setenv("REVALIDATE_SECRET", "s3cret")
-        with patch("urllib.request.urlopen") as mock_urlopen:
-            schema._trigger_revalidation()
-            request = mock_urlopen.call_args[0][0]
-            assert request.full_url == "https://example.vercel.app/api/revalidate"
-            assert request.get_header("X-revalidate-secret") == "s3cret"
-            assert request.get_method() == "POST"
-
-    def test_swallows_a_failed_request(self, monkeypatch):
-        monkeypatch.setenv("FRONTEND_URL", "https://example.vercel.app")
-        monkeypatch.setenv("REVALIDATE_SECRET", "s3cret")
-        with patch("urllib.request.urlopen", side_effect=OSError("timed out")):
-            schema._trigger_revalidation()  # must not raise
