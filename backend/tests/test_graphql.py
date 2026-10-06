@@ -43,6 +43,8 @@ mutation RecordPrice($price: PriceInput!) {
 }
 """
 
+TEST_SECRET = "test-secret"
+
 VALID_PRICE_VARS = {
     "price": {
         "average": 1050,
@@ -58,17 +60,20 @@ VALID_PRICE_VARS = {
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.setenv("RECORD_PRICE_SECRET", TEST_SECRET)
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
 
 
-def gql(client, query, variables=None):
+def gql(client, query, variables=None, headers=None):
+    default_headers = {"x-record-price-secret": TEST_SECRET}
     return client.post(
         "/price",
         data=json.dumps({"query": query, "variables": variables or {}}),
         content_type="application/json",
+        headers={**default_headers, **(headers or {})},
     )
 
 
@@ -117,6 +122,36 @@ def test_record_price_rejects_invalid_datetime(mock_insert, client):
     body = json.loads(response.data)
     assert body["data"] is None
     assert any("Invalid datetime" in e["message"] for e in body["errors"])
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_rejects_missing_secret(mock_insert, client):
+    response = gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS, headers={"x-record-price-secret": ""})
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Invalid or missing credentials" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_rejects_wrong_secret(mock_insert, client):
+    response = gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS, headers={"x-record-price-secret": "nope"})
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Invalid or missing credentials" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_fails_closed_when_unconfigured(mock_insert, client, monkeypatch):
+    # If RECORD_PRICE_SECRET isn't set at all, refuse every write rather
+    # than leaving the endpoint open by accident.
+    monkeypatch.delenv("RECORD_PRICE_SECRET", raising=False)
+    response = gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("not configured" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
     mock_insert.assert_not_called()
 
 

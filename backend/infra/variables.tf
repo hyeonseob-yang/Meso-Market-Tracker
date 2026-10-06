@@ -45,3 +45,9 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "record_price_secret" {
+  description = "Shared secret required (x-record-price-secret header) to call the recordPrice mutation"
+  type        = string
+  sensitive   = true
+}
