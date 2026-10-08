@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from database import get_prices, insert_price
+from database import get_latest_prices, get_prices, insert_price
 from models import PriceInput
 
 VALID_PRICE = PriceInput(
@@ -91,3 +91,22 @@ def test_get_prices_filters_by_since_only():
     assert "datetime >= %s" in sql
     assert "datetime <= %s" not in sql
     assert params == ["2026-09-01T00:00:00+00:00", 10000]
+
+
+def test_get_latest_prices_orders_newest_first_with_limit():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = []
+
+    with patch("database._get_conn", return_value=conn):
+        get_latest_prices(limit=2)
+
+    sql, params = cur.execute.call_args[0]
+    assert "ORDER BY datetime DESC" in sql
+    assert params == (2,)
+
+
+def test_get_latest_prices_raises_on_connection_failure():
+    with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
+        with pytest.raises(RuntimeError, match="Unable to fetch the latest prices"):
+            get_latest_prices()

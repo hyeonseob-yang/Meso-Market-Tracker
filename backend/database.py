@@ -65,6 +65,21 @@ def insert_price(price: PriceInput, occurred_at: str):
     return rows[0]
 
 
+def _row_to_record(row) -> PriceRecord:
+    return PriceRecord(
+        id=row[0],
+        datetime=str(row[1]),
+        average=row[2],
+        buy100M=row[3],
+        buy1B=row[4],
+        buy10B=row[5],
+        sell100M=row[6],
+        sell1B=row[7],
+        sell10B=row[8],
+        notes=row[9] or "",
+    )
+
+
 def get_prices(
     limit: int = 10000, since: str | None = None, until: str | None = None
 ) -> list[PriceRecord]:
@@ -92,24 +107,34 @@ def get_prices(
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(sql, params)
-            return [
-                PriceRecord(
-                    id=row[0],
-                    datetime=str(row[1]),
-                    average=row[2],
-                    buy100M=row[3],
-                    buy1B=row[4],
-                    buy10B=row[5],
-                    sell100M=row[6],
-                    sell1B=row[7],
-                    sell10B=row[8],
-                    notes=row[9] or "",
-                )
-                for row in cur.fetchall()
-            ]
+            return [_row_to_record(row) for row in cur.fetchall()]
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("get_prices failed: %s", _sanitize(str(error)))
         raise RuntimeError("Unable to fetch prices right now.") from error
+
+
+def get_latest_prices(limit: int = 2) -> list[PriceRecord]:
+    """Most recent `limit` rows, newest first - O(limit) via the index on
+    datetime, unlike get_prices which would need the whole table scanned
+    and sorted to find the tail end of an ASC-ordered range. Built for the
+    watchdog Lambda (see infra/watchdog/), which only needs the last row or
+    two to check staleness, not the full history."""
+    sql = """
+        SELECT id, datetime, average, buy100M, buy1B, buy10B,
+               sell100M, sell1B, sell10B, notes
+        FROM price
+        ORDER BY datetime DESC
+        LIMIT %s
+    """
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (limit,))
+            return [_row_to_record(row) for row in cur.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("get_latest_prices failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to fetch the latest prices right now.") from error
 
 
 def _get_config():

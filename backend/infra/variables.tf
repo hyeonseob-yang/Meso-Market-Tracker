@@ -51,3 +51,9 @@ variable "record_price_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "discord_webhook_url" {
+  description = "Discord channel webhook URL the staleness watchdog posts alerts to"
+  type        = string
+  sensitive   = true
+}

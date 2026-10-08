@@ -5,7 +5,7 @@ import strawberry
 from strawberry.extensions import DisableIntrospection
 from strawberry.types import Info
 
-from database import get_prices, insert_price
+from database import get_latest_prices, get_prices, insert_price
 from models import PriceInput, PriceRecord
 
 PRICE_FIELDS = ("average", "buy100M", "buy1B", "buy10B", "sell100M", "sell1B", "sell10B")
@@ -67,6 +67,13 @@ class Query:
         _parse_datetime_arg("since", since)
         _parse_datetime_arg("until", until)
         return get_prices(limit, since, until)
+
+    @strawberry.field
+    def latest_prices(self, limit: int = 2) -> list[PriceRecord]:
+        """Most recent rows, newest first - cheap even against a large
+        table, unlike paging through `prices` to find the tail end of its
+        oldest-first ordering. Built for the staleness watchdog."""
+        return get_latest_prices(limit)
 
 
 # Introspection/GraphiQL make the schema self-documenting, which is

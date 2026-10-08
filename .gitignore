@@ -7,3 +7,4 @@ backend/infra/*.tfvars
 backend/infra/*.tfstate
 backend/infra/*.tfstate.backup
 backend/infra/crash.log
+backend/infra/watchdog/handler.zip

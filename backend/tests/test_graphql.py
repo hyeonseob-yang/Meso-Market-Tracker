@@ -175,6 +175,26 @@ def test_prices_query_returns_empty_list(mock_get, client):
     assert body["data"]["prices"] == []
 
 
+LATEST_PRICES_QUERY = """
+query LatestPrices($limit: Int!) {
+  latestPrices(limit: $limit) {
+    id
+    datetime
+    average
+  }
+}
+"""
+
+
+@patch("schema.get_latest_prices", return_value=[SAMPLE_RECORD])
+def test_latest_prices_query_passes_limit_through(mock_get, client):
+    response = gql(client, LATEST_PRICES_QUERY, {"limit": 2})
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["latestPrices"][0]["id"] == 1
+    mock_get.assert_called_once_with(2)
+
+
 RANGED_PRICES_QUERY = """
 query Prices($since: String, $until: String) {
   prices(since: $since, until: $until) {
