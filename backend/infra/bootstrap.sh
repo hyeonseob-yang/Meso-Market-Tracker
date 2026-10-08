@@ -24,6 +24,7 @@ POLICIES=(
   AmazonAPIGatewayAdministrator
   IAMFullAccess
   CloudWatchLogsFullAccess
+  AmazonEventBridgeFullAccess
 )
 
 echo ">> Bridging current CLI credentials into this shell..."
