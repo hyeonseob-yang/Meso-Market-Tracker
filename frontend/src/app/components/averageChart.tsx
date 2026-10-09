@@ -112,13 +112,16 @@ function toChartData(
         data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.lower }))],
         borderWidth: 0,
         pointRadius: 0,
-        backgroundColor: "rgba(29, 78, 216, 0.15)",
+        backgroundColor: "rgba(67, 56, 202, 0.15)",
         fill: "-1",
       },
       {
+        // Indigo, matching the "Show Forecast" toggle below, so it's
+        // visually obvious the button and this layer are the same thing -
+        // distinct from the blue "Average" line rather than just dashed.
         label: "Forecast",
         data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.predicted }))],
-        borderColor: "#1d4ed8",
+        borderColor: "#4338ca",
         borderDash: [6, 6],
         pointRadius: 0,
       },
