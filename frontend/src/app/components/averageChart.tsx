@@ -18,6 +18,7 @@ import { Line } from "react-chartjs-2";
 import type { ChartData } from "chart.js";
 
 import { fetchPrices } from "../actions";
+import { generateDummyForecast, type ForecastPoint } from "../dummyForecast";
 
 ChartJS.register(
   Colors,
@@ -35,6 +36,11 @@ const options = {
   plugins: {
     legend: {
       position: "top" as const,
+      labels: {
+        // The upper/lower bound datasets exist only to shade the
+        // confidence band - don't give them their own legend entries.
+        filter: (item: { text: string }) => item.text !== "Forecast range",
+      },
     },
   },
   scales: {
@@ -74,21 +80,62 @@ const WINDOWS = [
 
 type WindowLabel = (typeof WINDOWS)[number]["label"];
 
-function toChartData(prices: PriceRow[]): ChartData<"line", { x: string; y: number }[]> {
-  return {
-    datasets: [
+function toChartData(
+  prices: PriceRow[],
+  forecast: ForecastPoint[],
+): ChartData<"line", { x: string; y: number }[]> {
+  const datasets: ChartData<"line", { x: string; y: number }[]>["datasets"] = [
+    {
+      label: "Average",
+      data: prices.map((p) => ({ x: p.datetime, y: p.average })),
+      borderColor: "#1d4ed8",
+    },
+  ];
+
+  if (forecast.length > 0) {
+    const anchor = prices[prices.length - 1];
+    const lead = anchor ? [{ x: anchor.datetime, y: anchor.average }] : [];
+
+    datasets.push(
+      // Upper bound first, then lower bound filling back to it (Chart.js's
+      // `fill: "-1"` means "fill to the dataset defined just before this
+      // one") - together they shade the confidence band between them.
       {
-        label: "Average",
-        data: prices.map((p) => ({ x: p.datetime, y: p.average })),
+        label: "Forecast range",
+        data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.upper }))],
+        borderWidth: 0,
+        pointRadius: 0,
+        fill: false,
       },
-    ],
-  };
+      {
+        label: "Forecast range",
+        data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.lower }))],
+        borderWidth: 0,
+        pointRadius: 0,
+        backgroundColor: "rgba(29, 78, 216, 0.15)",
+        fill: "-1",
+      },
+      {
+        label: "Forecast",
+        data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.predicted }))],
+        borderColor: "#1d4ed8",
+        borderDash: [6, 6],
+        pointRadius: 0,
+      },
+    );
+  }
+
+  return { datasets };
 }
 
 export default function AverageChart({ initialPrices }: { initialPrices: PriceRow[] }) {
   const [selected, setSelected] = useState<WindowLabel>("1M");
   const [prices, setPrices] = useState(initialPrices);
+  const [showForecast, setShowForecast] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // TEMPORARY: dummy data until the real sktime-backed forecast exists.
+  const forecast = showForecast ? generateDummyForecast(prices) : [];
 
   function selectWindow(window: (typeof WINDOWS)[number]) {
     setSelected(window.label);
@@ -101,25 +148,42 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
 
   return (
     <div>
-      <div role="group" aria-label="Time window" className="mb-4 flex gap-2">
-        {WINDOWS.map((window) => (
-          <button
-            key={window.label}
-            type="button"
-            onClick={() => selectWindow(window)}
-            disabled={isPending}
-            aria-pressed={selected === window.label}
-            className={`rounded px-3 py-1 text-sm font-medium disabled:opacity-50 ${
-              selected === window.label
-                ? "bg-blue-700 text-white"
-                : "bg-white text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {window.label}
-          </button>
-        ))}
+      <div className="mb-4 flex items-center justify-between">
+        <div role="group" aria-label="Time window" className="flex gap-2">
+          {WINDOWS.map((window) => (
+            <button
+              key={window.label}
+              type="button"
+              onClick={() => selectWindow(window)}
+              disabled={isPending}
+              aria-pressed={selected === window.label}
+              className={`rounded px-3 py-1 text-sm font-medium disabled:opacity-50 ${
+                selected === window.label
+                  ? "bg-blue-700 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {window.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowForecast((v) => !v)}
+          aria-pressed={showForecast}
+          className={`rounded px-3 py-1 text-sm font-medium ${
+            showForecast ? "bg-indigo-700 text-white" : "bg-white text-gray-700 hover:bg-gray-200"
+          }`}
+        >
+          {showForecast ? "Hide Forecast" : "Show Forecast"}
+        </button>
       </div>
-      <Line options={options} data={toChartData(prices)} />
+      <Line options={options} data={toChartData(prices, forecast)} />
+      {showForecast && (
+        <p className="mt-2 text-xs text-gray-500">
+          Forecast shown is placeholder data for preview only — not a real prediction yet.
+        </p>
+      )}
     </div>
   );
 }
