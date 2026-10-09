@@ -15,7 +15,7 @@ import "chartjs-adapter-date-fns";
 import { Line } from "react-chartjs-2";
 
 import type { ForecastSnapshot } from "../forecastSnapshots";
-import { chartOptions, forecastDatasets } from "./chartConfig";
+import { buildChartData, chartOptions } from "./chartConfig";
 
 // Registering again here is harmless (Chart.js dedups by component) and
 // keeps this self-contained - a visitor could land on /predictions without
@@ -32,10 +32,5 @@ ChartJS.register(
 );
 
 export default function SnapshotChart({ snapshot }: { snapshot: ForecastSnapshot }) {
-  return (
-    <Line
-      options={chartOptions}
-      data={{ datasets: forecastDatasets(snapshot.anchor, snapshot.points) }}
-    />
-  );
+  return <Line options={chartOptions} data={buildChartData(snapshot.history, snapshot.points)} />;
 }

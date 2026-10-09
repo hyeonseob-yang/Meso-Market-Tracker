@@ -15,12 +15,11 @@ import {
 } from "chart.js";
 import "chartjs-adapter-date-fns";
 import { Line } from "react-chartjs-2";
-import type { ChartData } from "chart.js";
 
 import { fetchPrices } from "../actions";
-import { generateDummyForecast, type ForecastPoint } from "../dummyForecast";
+import { generateDummyForecast } from "../dummyForecast";
 import { saveSnapshot } from "../forecastSnapshots";
-import { chartOptions, forecastDatasets, type PriceRow } from "./chartConfig";
+import { buildChartData, chartOptions, type PriceRow } from "./chartConfig";
 
 ChartJS.register(
   Colors,
@@ -51,23 +50,6 @@ const FORECAST_HORIZONS = [
 
 type ForecastHorizonLabel = (typeof FORECAST_HORIZONS)[number]["label"];
 
-function toChartData(
-  prices: PriceRow[],
-  forecast: ForecastPoint[],
-): ChartData<"line", { x: string; y: number }[]> {
-  const anchor = prices[prices.length - 1] ?? null;
-  return {
-    datasets: [
-      {
-        label: "Average",
-        data: prices.map((p) => ({ x: p.datetime, y: p.average })),
-        borderColor: "#1d4ed8",
-      },
-      ...forecastDatasets(anchor, forecast),
-    ],
-  };
-}
-
 export default function AverageChart({ initialPrices }: { initialPrices: PriceRow[] }) {
   const [selected, setSelected] = useState<WindowLabel>("1M");
   const [prices, setPrices] = useState(initialPrices);
@@ -90,7 +72,9 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
   }
 
   function handleSaveSnapshot() {
-    saveSnapshot(horizonDays, prices[prices.length - 1] ?? null, forecast);
+    // Includes the currently-displayed history, not just the forecast - a
+    // prediction isn't meaningful without the data it was built from.
+    saveSnapshot(horizonDays, prices, forecast);
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2000);
   }
@@ -157,7 +141,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           </button>
         </div>
       </div>
-      <Line options={chartOptions} data={toChartData(prices, forecast)} />
+      <Line options={chartOptions} data={buildChartData(prices, forecast)} />
       {showForecast && (
         <p className="mt-2 text-xs text-gray-500">
           Forecast shown is placeholder data for preview only — not a real prediction yet.

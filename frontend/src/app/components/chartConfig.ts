@@ -80,3 +80,23 @@ export function forecastDatasets(
     },
   ];
 }
+
+// History + forecast together - a forecast isn't meaningful without the
+// trailing data it was built from, so this is the one function both the
+// live chart and the saved-snapshot viewer render from.
+export function buildChartData(
+  history: PriceRow[],
+  forecast: ForecastPoint[],
+): ChartData<"line", { x: string; y: number }[]> {
+  const anchor = history[history.length - 1] ?? null;
+  return {
+    datasets: [
+      {
+        label: "Average",
+        data: history.map((p) => ({ x: p.datetime, y: p.average })),
+        borderColor: "#1d4ed8",
+      },
+      ...forecastDatasets(anchor, forecast),
+    ],
+  };
+}

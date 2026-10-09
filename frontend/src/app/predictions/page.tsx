@@ -52,7 +52,8 @@ export default function PredictionsPage() {
                     {format(new Date(snapshot.createdAt), "MMM d, yyyy HH:mm")}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {snapshot.horizonDays}-day horizon · {snapshot.points.length} points
+                    {snapshot.horizonDays}-day horizon · {snapshot.history.length} history points ·{" "}
+                    {snapshot.points.length} forecast points
                     {first && last && (
                       <> · predicted {Math.round(first.predicted)} → {Math.round(last.predicted)}</>
                     )}
