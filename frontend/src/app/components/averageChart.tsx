@@ -80,6 +80,14 @@ const WINDOWS = [
 
 type WindowLabel = (typeof WINDOWS)[number]["label"];
 
+const FORECAST_HORIZONS = [
+  { label: "1W", days: 7 },
+  { label: "1M", days: 30 },
+  { label: "3M", days: 90 },
+] as const;
+
+type ForecastHorizonLabel = (typeof FORECAST_HORIZONS)[number]["label"];
+
 function toChartData(
   prices: PriceRow[],
   forecast: ForecastPoint[],
@@ -136,10 +144,12 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
   const [selected, setSelected] = useState<WindowLabel>("1M");
   const [prices, setPrices] = useState(initialPrices);
   const [showForecast, setShowForecast] = useState(false);
+  const [forecastHorizon, setForecastHorizon] = useState<ForecastHorizonLabel>("1M");
   const [isPending, startTransition] = useTransition();
 
   // TEMPORARY: dummy data until the real sktime-backed forecast exists.
-  const forecast = showForecast ? generateDummyForecast(prices) : [];
+  const horizonDays = FORECAST_HORIZONS.find((h) => h.label === forecastHorizon)!.days;
+  const forecast = showForecast ? generateDummyForecast(prices, horizonDays) : [];
 
   function selectWindow(window: (typeof WINDOWS)[number]) {
     setSelected(window.label);
@@ -171,16 +181,37 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForecast((v) => !v)}
-          aria-pressed={showForecast}
-          className={`rounded px-3 py-1 text-sm font-medium ${
-            showForecast ? "bg-orange-600 text-white" : "bg-white text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          {showForecast ? "Hide Forecast" : "Show Forecast"}
-        </button>
+        <div className="flex items-center gap-2">
+          {showForecast && (
+            <div role="group" aria-label="Forecast horizon" className="flex gap-2">
+              {FORECAST_HORIZONS.map((horizon) => (
+                <button
+                  key={horizon.label}
+                  type="button"
+                  onClick={() => setForecastHorizon(horizon.label)}
+                  aria-pressed={forecastHorizon === horizon.label}
+                  className={`rounded px-3 py-1 text-sm font-medium ${
+                    forecastHorizon === horizon.label
+                      ? "bg-orange-600 text-white"
+                      : "bg-white text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  +{horizon.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowForecast((v) => !v)}
+            aria-pressed={showForecast}
+            className={`rounded px-3 py-1 text-sm font-medium ${
+              showForecast ? "bg-orange-600 text-white" : "bg-white text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {showForecast ? "Hide Forecast" : "Show Forecast"}
+          </button>
+        </div>
       </div>
       <Line options={options} data={toChartData(prices, forecast)} />
       {showForecast && (

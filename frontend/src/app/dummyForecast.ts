@@ -12,7 +12,9 @@ export type ForecastPoint = {
   upper: number;
 };
 
-export function generateDummyForecast(prices: PriceRow[], steps = 10): ForecastPoint[] {
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function generateDummyForecast(prices: PriceRow[], horizonDays: number): ForecastPoint[] {
   if (prices.length < 2) return [];
 
   // Recent trend + volatility, so the dummy line at least looks connected
@@ -26,11 +28,13 @@ export function generateDummyForecast(prices: PriceRow[], steps = 10): ForecastP
     Math.abs(values[values.length - 1]) * 0.01 ||
     1;
 
-  // Step forward using the data's own average spacing, so "steps" lands at
-  // a sensible point in time regardless of which window is selected.
+  // Step forward using the data's own average spacing, so each step lands
+  // at a sensible point in time regardless of which window is selected -
+  // then figure out how many of those steps reach the requested horizon.
   const times = prices.map((p) => new Date(p.datetime).getTime());
   const gaps = times.slice(1).map((t, i) => t - times[i]);
-  const stepMs = gaps.length > 0 ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 24 * 60 * 60 * 1000;
+  const stepMs = gaps.length > 0 ? gaps.reduce((a, b) => a + b, 0) / gaps.length : MS_PER_DAY;
+  const steps = Math.max(1, Math.min(500, Math.round((horizonDays * MS_PER_DAY) / stepMs)));
 
   const lastTime = times[times.length - 1];
   const lastValue = values[values.length - 1];
