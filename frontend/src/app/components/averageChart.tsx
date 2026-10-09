@@ -72,8 +72,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
   }
 
   function handleSaveSnapshot() {
-    // Includes the currently-displayed history, not just the forecast - a
-    // prediction isn't meaningful without the data it was built from.
+    // Includes the currently-displayed history, not just the forecast.
     saveSnapshot(horizonDays, prices, forecast);
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2000);

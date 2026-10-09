@@ -41,8 +41,7 @@ export const chartOptions = {
   },
 };
 
-// Shared between the live chart (averageChart.tsx) and the saved-snapshot
-// viewer (predictions/page.tsx), so both render a forecast identically.
+// Shared by the live chart and the saved-snapshot viewer.
 export function forecastDatasets(
   anchor: PriceRow | null,
   forecast: ForecastPoint[],
@@ -81,9 +80,7 @@ export function forecastDatasets(
   ];
 }
 
-// History + forecast together - a forecast isn't meaningful without the
-// trailing data it was built from, so this is the one function both the
-// live chart and the saved-snapshot viewer render from.
+// History + forecast together.
 export function buildChartData(
   history: PriceRow[],
   forecast: ForecastPoint[],

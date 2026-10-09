@@ -1,7 +1,5 @@
-// TEMPORARY. This fabricates a plausible-looking forecast purely so the
-// chart UI can be previewed before the real sktime-backed GraphQL field
-// exists. Delete this file and swap its one call site (averageChart.tsx)
-// for a real server action once that's built.
+// TEMPORARY: fabricates a forecast for UI preview. Swap for a real
+// sktime-backed server action later.
 
 type PriceRow = { datetime: string; average: number };
 

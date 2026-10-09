@@ -7,9 +7,7 @@ import SnapshotChart from "../components/snapshotChart";
 import { deleteSnapshot, listSnapshots, type ForecastSnapshot } from "../forecastSnapshots";
 
 export default function PredictionsPage() {
-  // Snapshots live in localStorage, which doesn't exist during server
-  // rendering - start empty and load after mount to avoid a hydration
-  // mismatch, rather than reading it directly in the render body.
+  // localStorage isn't available during SSR - load after mount instead.
   const [snapshots, setSnapshots] = useState<ForecastSnapshot[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

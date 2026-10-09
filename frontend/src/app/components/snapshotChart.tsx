@@ -17,9 +17,7 @@ import { Line } from "react-chartjs-2";
 import type { ForecastSnapshot } from "../forecastSnapshots";
 import { buildChartData, chartOptions } from "./chartConfig";
 
-// Registering again here is harmless (Chart.js dedups by component) and
-// keeps this self-contained - a visitor could land on /predictions without
-// ever rendering averageChart.tsx first in this session.
+// Re-registering is harmless (Chart.js dedups) and keeps this self-contained.
 ChartJS.register(
   Colors,
   LinearScale,
