@@ -124,7 +124,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
                 <button
                   type="button"
                   onClick={handleSaveSnapshot}
-                  className="rounded border border-gray-300 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
                 >
                   {justSaved ? "Saved ✓" : "Save Snapshot"}
                 </button>
