@@ -19,6 +19,8 @@ import type { ChartData } from "chart.js";
 
 import { fetchPrices } from "../actions";
 import { generateDummyForecast, type ForecastPoint } from "../dummyForecast";
+import { saveSnapshot } from "../forecastSnapshots";
+import { chartOptions, forecastDatasets, type PriceRow } from "./chartConfig";
 
 ChartJS.register(
   Colors,
@@ -30,45 +32,6 @@ ChartJS.register(
   Tooltip,
   Legend,
 );
-
-const options = {
-  responsive: true,
-  plugins: {
-    legend: {
-      position: "top" as const,
-      labels: {
-        // The upper/lower bound datasets exist only to shade the
-        // confidence band - don't give them their own legend entries.
-        filter: (item: { text: string }) => item.text !== "Forecast range",
-      },
-    },
-  },
-  scales: {
-    x: {
-      type: "time" as const,
-      time: {
-        tooltipFormat: "MMM d, yyyy HH:mm",
-        displayFormats: {
-          day: "MMM d",
-          week: "MMM d",
-          month: "MMM yyyy",
-        },
-      },
-      title: {
-        display: true,
-        text: "Date",
-      },
-    },
-    y: {
-      title: {
-        display: true,
-        text: "Price",
-      },
-    },
-  },
-};
-
-type PriceRow = { datetime: string; average: number };
 
 const WINDOWS = [
   { label: "1W", since: (now: Date) => subDays(now, 7) },
@@ -92,52 +55,17 @@ function toChartData(
   prices: PriceRow[],
   forecast: ForecastPoint[],
 ): ChartData<"line", { x: string; y: number }[]> {
-  const datasets: ChartData<"line", { x: string; y: number }[]>["datasets"] = [
-    {
-      label: "Average",
-      data: prices.map((p) => ({ x: p.datetime, y: p.average })),
-      borderColor: "#1d4ed8",
-    },
-  ];
-
-  if (forecast.length > 0) {
-    const anchor = prices[prices.length - 1];
-    const lead = anchor ? [{ x: anchor.datetime, y: anchor.average }] : [];
-
-    datasets.push(
-      // Upper bound first, then lower bound filling back to it (Chart.js's
-      // `fill: "-1"` means "fill to the dataset defined just before this
-      // one") - together they shade the confidence band between them.
+  const anchor = prices[prices.length - 1] ?? null;
+  return {
+    datasets: [
       {
-        label: "Forecast range",
-        data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.upper }))],
-        borderWidth: 0,
-        pointRadius: 0,
-        fill: false,
+        label: "Average",
+        data: prices.map((p) => ({ x: p.datetime, y: p.average })),
+        borderColor: "#1d4ed8",
       },
-      {
-        label: "Forecast range",
-        data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.lower }))],
-        borderWidth: 0,
-        pointRadius: 0,
-        backgroundColor: "rgba(234, 88, 12, 0.15)",
-        fill: "-1",
-      },
-      {
-        // Orange, matching the "Show Forecast" toggle below, so it's
-        // visually obvious the button and this layer are the same thing -
-        // high-contrast against the blue "Average" line rather than just
-        // dashed (indigo was tried first and was too close to the blue).
-        label: "Forecast",
-        data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.predicted }))],
-        borderColor: "#ea580c",
-        borderDash: [6, 6],
-        pointRadius: 0,
-      },
-    );
-  }
-
-  return { datasets };
+      ...forecastDatasets(anchor, forecast),
+    ],
+  };
 }
 
 export default function AverageChart({ initialPrices }: { initialPrices: PriceRow[] }) {
@@ -145,6 +73,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
   const [prices, setPrices] = useState(initialPrices);
   const [showForecast, setShowForecast] = useState(false);
   const [forecastHorizon, setForecastHorizon] = useState<ForecastHorizonLabel>("1M");
+  const [justSaved, setJustSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // TEMPORARY: dummy data until the real sktime-backed forecast exists.
@@ -158,6 +87,12 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
     startTransition(async () => {
       setPrices(await fetchPrices(since?.toISOString(), until.toISOString()));
     });
+  }
+
+  function handleSaveSnapshot() {
+    saveSnapshot(horizonDays, prices[prices.length - 1] ?? null, forecast);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
   }
 
   return (
@@ -201,6 +136,15 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
               ))}
             </div>
           )}
+          {showForecast && forecast.length > 0 && (
+            <button
+              type="button"
+              onClick={handleSaveSnapshot}
+              className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
+            >
+              {justSaved ? "Saved ✓" : "Save Snapshot"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowForecast((v) => !v)}
@@ -213,7 +157,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           </button>
         </div>
       </div>
-      <Line options={options} data={toChartData(prices, forecast)} />
+      <Line options={chartOptions} data={toChartData(prices, forecast)} />
       {showForecast && (
         <p className="mt-2 text-xs text-gray-500">
           Forecast shown is placeholder data for preview only — not a real prediction yet.
