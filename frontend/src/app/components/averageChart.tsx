@@ -100,34 +100,36 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           {showForecast && (
-            <div role="group" aria-label="Forecast horizon" className="flex gap-2">
-              {FORECAST_HORIZONS.map((horizon) => (
+            <div className="flex items-center gap-2">
+              <div role="group" aria-label="Forecast horizon" className="flex gap-2">
+                {FORECAST_HORIZONS.map((horizon) => (
+                  <button
+                    key={horizon.label}
+                    type="button"
+                    onClick={() => setForecastHorizon(horizon.label)}
+                    aria-pressed={forecastHorizon === horizon.label}
+                    className={`rounded px-3 py-1 text-sm font-medium ${
+                      forecastHorizon === horizon.label
+                        ? "bg-orange-600 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    +{horizon.label}
+                  </button>
+                ))}
+              </div>
+              {forecast.length > 0 && (
                 <button
-                  key={horizon.label}
                   type="button"
-                  onClick={() => setForecastHorizon(horizon.label)}
-                  aria-pressed={forecastHorizon === horizon.label}
-                  className={`rounded px-3 py-1 text-sm font-medium ${
-                    forecastHorizon === horizon.label
-                      ? "bg-orange-600 text-white"
-                      : "bg-white text-gray-700 hover:bg-gray-200"
-                  }`}
+                  onClick={handleSaveSnapshot}
+                  className="rounded border border-gray-300 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100"
                 >
-                  +{horizon.label}
+                  {justSaved ? "Saved ✓" : "Save Snapshot"}
                 </button>
-              ))}
+              )}
             </div>
-          )}
-          {showForecast && forecast.length > 0 && (
-            <button
-              type="button"
-              onClick={handleSaveSnapshot}
-              className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
-            >
-              {justSaved ? "Saved ✓" : "Save Snapshot"}
-            </button>
           )}
           <button
             type="button"
