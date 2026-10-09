@@ -112,16 +112,17 @@ function toChartData(
         data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.lower }))],
         borderWidth: 0,
         pointRadius: 0,
-        backgroundColor: "rgba(67, 56, 202, 0.15)",
+        backgroundColor: "rgba(234, 88, 12, 0.15)",
         fill: "-1",
       },
       {
-        // Indigo, matching the "Show Forecast" toggle below, so it's
+        // Orange, matching the "Show Forecast" toggle below, so it's
         // visually obvious the button and this layer are the same thing -
-        // distinct from the blue "Average" line rather than just dashed.
+        // high-contrast against the blue "Average" line rather than just
+        // dashed (indigo was tried first and was too close to the blue).
         label: "Forecast",
         data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.predicted }))],
-        borderColor: "#4338ca",
+        borderColor: "#ea580c",
         borderDash: [6, 6],
         pointRadius: 0,
       },
@@ -175,7 +176,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           onClick={() => setShowForecast((v) => !v)}
           aria-pressed={showForecast}
           className={`rounded px-3 py-1 text-sm font-medium ${
-            showForecast ? "bg-indigo-700 text-white" : "bg-white text-gray-700 hover:bg-gray-200"
+            showForecast ? "bg-orange-600 text-white" : "bg-white text-gray-700 hover:bg-gray-200"
           }`}
         >
           {showForecast ? "Hide Forecast" : "Show Forecast"}
