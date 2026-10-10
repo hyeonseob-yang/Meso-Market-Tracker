@@ -4,7 +4,6 @@
 CREATE TABLE forecast_snapshot (
     id            SERIAL PRIMARY KEY,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    horizon_days  INTEGER NOT NULL,
     model         TEXT NOT NULL,
     model_params  JSONB,
     history       JSONB NOT NULL,

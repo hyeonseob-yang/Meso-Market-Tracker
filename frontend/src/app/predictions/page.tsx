@@ -6,6 +6,16 @@ import { format } from "date-fns";
 import SnapshotChart from "../components/snapshotChart";
 import { deleteSnapshot, listSnapshots, type ForecastSnapshot } from "../forecastSnapshots";
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function horizonLabel(snapshot: ForecastSnapshot): string {
+  const anchor = snapshot.history[snapshot.history.length - 1];
+  const end = snapshot.points[snapshot.points.length - 1];
+  if (!anchor || !end) return "";
+  const days = (new Date(end.datetime).getTime() - new Date(anchor.datetime).getTime()) / MS_PER_DAY;
+  return `${days < 1 ? days.toFixed(1) : Math.round(days)}-day horizon`;
+}
+
 export default function PredictionsPage() {
   // localStorage isn't available during SSR - load after mount instead.
   const [snapshots, setSnapshots] = useState<ForecastSnapshot[]>([]);
@@ -50,7 +60,7 @@ export default function PredictionsPage() {
                     {format(new Date(snapshot.createdAt), "MMM d, yyyy HH:mm")}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {snapshot.horizonDays}-day horizon · {snapshot.history.length} history points ·{" "}
+                    {horizonLabel(snapshot)} · {snapshot.history.length} history points ·{" "}
                     {snapshot.points.length} forecast points
                     {first && last && (
                       <> · predicted {Math.round(first.predicted)} → {Math.round(last.predicted)}</>

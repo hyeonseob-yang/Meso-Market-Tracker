@@ -7,7 +7,6 @@ import type { PriceRow } from "./components/chartConfig";
 export type ForecastSnapshot = {
   id: string;
   createdAt: string;
-  horizonDays: number;
   history: PriceRow[];
   points: ForecastPoint[];
 };
@@ -38,15 +37,10 @@ export function listSnapshots(): ForecastSnapshot[] {
   return readAll().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export function saveSnapshot(
-  horizonDays: number,
-  history: PriceRow[],
-  points: ForecastPoint[],
-): ForecastSnapshot {
+export function saveSnapshot(history: PriceRow[], points: ForecastPoint[]): ForecastSnapshot {
   const snapshot: ForecastSnapshot = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
-    horizonDays,
     history,
     points,
   };
