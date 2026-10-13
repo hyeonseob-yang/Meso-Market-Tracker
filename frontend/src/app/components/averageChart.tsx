@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { subDays, subMonths, subYears } from "date-fns";
 import {
   Chart as ChartJS,
@@ -17,8 +17,7 @@ import "chartjs-adapter-date-fns";
 import { Line } from "react-chartjs-2";
 
 import { fetchPrices } from "../actions";
-import { generateDummyForecast } from "../dummyForecast";
-import { saveSnapshot } from "../forecastSnapshots";
+import { fetchForecast, saveForecastSnapshot, type Forecast } from "../forecastActions";
 import { buildChartData, chartOptions, type PriceRow } from "./chartConfig";
 
 ChartJS.register(
@@ -42,25 +41,33 @@ const WINDOWS = [
 
 type WindowLabel = (typeof WINDOWS)[number]["label"];
 
-const FORECAST_HORIZONS = [
-  { label: "1W", days: 7 },
-  { label: "1M", days: 30 },
-  { label: "3M", days: 90 },
-] as const;
-
-type ForecastHorizonLabel = (typeof FORECAST_HORIZONS)[number]["label"];
-
 export default function AverageChart({ initialPrices }: { initialPrices: PriceRow[] }) {
   const [selected, setSelected] = useState<WindowLabel>("1M");
   const [prices, setPrices] = useState(initialPrices);
   const [showForecast, setShowForecast] = useState(false);
-  const [forecastHorizon, setForecastHorizon] = useState<ForecastHorizonLabel>("1M");
+  const [forecast, setForecast] = useState<Forecast | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // TEMPORARY: dummy data until the real sktime-backed forecast exists.
-  const horizonDays = FORECAST_HORIZONS.find((h) => h.label === forecastHorizon)!.days;
-  const forecast = showForecast ? generateDummyForecast(prices, horizonDays) : [];
+  useEffect(() => {
+    if (!showForecast) {
+      setForecast(null);
+      return;
+    }
+    let cancelled = false;
+    setForecastLoading(true);
+    fetchForecast().then((result) => {
+      if (!cancelled) {
+        setForecast(result);
+        setForecastLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showForecast]);
 
   function selectWindow(window: (typeof WINDOWS)[number]) {
     setSelected(window.label);
@@ -71,11 +78,15 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
     });
   }
 
-  function handleSaveSnapshot() {
-    // Includes the currently-displayed history, not just the forecast.
-    saveSnapshot(prices, forecast);
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 2000);
+  async function handleSaveSnapshot() {
+    if (!forecast) return;
+    setIsSaving(true);
+    const saved = await saveForecastSnapshot(prices, forecast.points, forecast.model, forecast.modelParams);
+    setIsSaving(false);
+    if (saved) {
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    }
   }
 
   return (
@@ -100,35 +111,15 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           ))}
         </div>
         <div className="flex items-center gap-4">
-          {showForecast && (
-            <div className="flex items-center gap-2">
-              <div role="group" aria-label="Forecast horizon" className="flex gap-2">
-                {FORECAST_HORIZONS.map((horizon) => (
-                  <button
-                    key={horizon.label}
-                    type="button"
-                    onClick={() => setForecastHorizon(horizon.label)}
-                    aria-pressed={forecastHorizon === horizon.label}
-                    className={`rounded px-3 py-1 text-sm font-medium ${
-                      forecastHorizon === horizon.label
-                        ? "bg-orange-600 text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    +{horizon.label}
-                  </button>
-                ))}
-              </div>
-              {forecast.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleSaveSnapshot}
-                  className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
-                >
-                  {justSaved ? "Saved ✓" : "Save Snapshot"}
-                </button>
-              )}
-            </div>
+          {showForecast && forecast && forecast.points.length > 0 && (
+            <button
+              type="button"
+              onClick={handleSaveSnapshot}
+              disabled={isSaving}
+              className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              {isSaving ? "Saving…" : justSaved ? "Saved ✓" : "Save Snapshot"}
+            </button>
           )}
           <button
             type="button"
@@ -142,11 +133,10 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           </button>
         </div>
       </div>
-      <Line options={chartOptions} data={buildChartData(prices, forecast)} />
-      {showForecast && (
-        <p className="mt-2 text-xs text-gray-500">
-          Forecast shown is placeholder data for preview only — not a real prediction yet.
-        </p>
+      <Line options={chartOptions} data={buildChartData(prices, forecast?.points ?? [])} />
+      {showForecast && forecastLoading && <p className="mt-2 text-xs text-gray-500">Loading forecast…</p>}
+      {showForecast && forecast && (
+        <p className="mt-2 text-xs text-gray-500">Model: {forecast.model}</p>
       )}
     </div>
   );

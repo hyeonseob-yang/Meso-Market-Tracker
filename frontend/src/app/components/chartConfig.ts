@@ -1,8 +1,8 @@
 import type { ChartData } from "chart.js";
 
-import type { ForecastPoint } from "../dummyForecast";
-
 export type PriceRow = { datetime: string; average: number };
+
+export type ForecastPoint = { datetime: string; predicted: number; lower: number; upper: number };
 
 export const chartOptions = {
   responsive: true,

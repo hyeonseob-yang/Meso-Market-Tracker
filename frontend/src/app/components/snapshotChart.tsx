@@ -14,7 +14,7 @@ import {
 import "chartjs-adapter-date-fns";
 import { Line } from "react-chartjs-2";
 
-import type { ForecastSnapshot } from "../forecastSnapshots";
+import type { ForecastSnapshot } from "../forecastActions";
 import { buildChartData, chartOptions } from "./chartConfig";
 
 // Re-registering is harmless (Chart.js dedups) and keeps this self-contained.
