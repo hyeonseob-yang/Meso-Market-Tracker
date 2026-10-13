@@ -5,11 +5,21 @@ import strawberry
 from strawberry.extensions import DisableIntrospection
 from strawberry.types import Info
 
-from database import get_latest_prices, get_prices, insert_price
-from models import PriceInput, PriceRecord
+from database import (
+    delete_forecast_snapshot as db_delete_forecast_snapshot,
+    get_forecast_cache,
+    get_forecast_snapshots,
+    get_latest_prices,
+    get_prices,
+    insert_forecast_snapshot,
+    insert_price,
+)
+from models import Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord
+from strawberry.scalars import JSON
 
 PRICE_FIELDS = ("average", "buy100M", "buy1B", "buy10B", "sell100M", "sell1B", "sell10B")
 RECORD_PRICE_SECRET_HEADER = "x-record-price-secret"
+FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret"
 
 
 def _parse_datetime_arg(name: str, value: str | None) -> None:
