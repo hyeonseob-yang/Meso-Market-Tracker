@@ -1,5 +1,6 @@
 import dataclasses
 import strawberry
+from strawberry.scalars import JSON
 
 
 @dataclasses.dataclass
@@ -27,3 +28,20 @@ class PriceInput(_PriceFields):
 class PriceRecord(_PriceFields):
     id: int
     datetime: str
+
+
+@strawberry.type
+class Forecast:
+    model: str
+    model_params: JSON | None
+    points: JSON  # list[{datetime, predicted, lower, upper}]
+
+
+@strawberry.type
+class ForecastSnapshotRecord:
+    id: int
+    created_at: str
+    model: str
+    model_params: JSON | None
+    history: JSON
+    points: JSON
