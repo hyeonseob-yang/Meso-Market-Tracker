@@ -4,7 +4,12 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, request
 from strawberry.flask.views import GraphQLView
 
-from database import get_forecast_cache, get_forecast_training_prices, insert_forecast_snapshot
+from database import (
+    get_forecast_cache,
+    get_forecast_training_prices,
+    insert_forecast_snapshot,
+    upsert_forecast_cache,
+)
 from forecasting import MAX_TRAINING_DAYS, compute_forecast
 from schema import schema
 
