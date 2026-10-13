@@ -47,6 +47,9 @@ resource "aws_lambda_function" "backend" {
       DB_PASSWORD                   = var.db_password
       PORT                          = "5000"
       RECORD_PRICE_SECRET           = var.record_price_secret
+      FORECAST_SNAPSHOT_SECRET      = var.forecast_snapshot_secret
+      INTERNAL_TRIGGER_SECRET       = var.internal_trigger_secret
+      AWS_LWA_PASS_THROUGH_PATH     = "/internal/trigger"
       GRAPHQL_INTROSPECTION_ENABLED = "false"
     }
   }

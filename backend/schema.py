@@ -53,6 +53,20 @@ def _check_write_auth(info: Info) -> None:
         raise PermissionError("Invalid or missing credentials.")
 
 
+def _check_forecast_snapshot_write_auth(info: Info) -> None:
+    """Gates recordForecastSnapshot/deleteForecastSnapshot - a separate
+    secret from _check_write_auth's: this one is held by the Vercel-hosted
+    frontend on behalf of site visitors, a different trust boundary from
+    the external Collector bot RECORD_PRICE_SECRET guards."""
+    expected = os.environ.get("FORECAST_SNAPSHOT_SECRET")
+    if not expected:
+        raise PermissionError("Writes are not configured.")
+
+    provided = info.context["request"].headers.get(FORECAST_SNAPSHOT_SECRET_HEADER)
+    if provided != expected:
+        raise PermissionError("Invalid or missing credentials.")
+
+
 @strawberry.type
 class Mutation:
     @strawberry.mutation
@@ -62,6 +76,32 @@ class Mutation:
         occurred_at = price.datetime or datetime.now(timezone.utc).isoformat()
         price_id = insert_price(price, occurred_at)
         return str(price_id)
+
+    @strawberry.mutation
+    def record_forecast_snapshot(
+        self,
+        info: Info,
+        history: JSON,
+        points: JSON,
+        model: str,
+        model_params: JSON | None = None,
+    ) -> ForecastSnapshotRecord:
+        _check_forecast_snapshot_write_auth(info)
+        created_at = datetime.now(timezone.utc).isoformat()
+        snapshot_id = insert_forecast_snapshot(history, points, model, model_params)
+        return ForecastSnapshotRecord(
+            id=snapshot_id,
+            created_at=created_at,
+            model=model,
+            model_params=model_params,
+            history=history,
+            points=points,
+        )
+
+    @strawberry.mutation
+    def delete_forecast_snapshot(self, info: Info, id: int) -> bool:
+        _check_forecast_snapshot_write_auth(info)
+        return db_delete_forecast_snapshot(id)
 
 
 @strawberry.type
@@ -84,6 +124,18 @@ class Query:
         table, unlike paging through `prices` to find the tail end of its
         oldest-first ordering. Built for the staleness watchdog."""
         return get_latest_prices(limit)
+
+    @strawberry.field
+    def forecast(self) -> Forecast | None:
+        """Reads the precomputed cache - null before the first scheduled
+        run has ever populated it. No fitting happens on this request
+        path; see forecasting.compute_forecast and the /internal/trigger
+        scheduled job."""
+        return get_forecast_cache()
+
+    @strawberry.field
+    def forecast_snapshots(self, limit: int = 50) -> list[ForecastSnapshotRecord]:
+        return get_forecast_snapshots(limit)
 
 
 # Introspection/GraphiQL make the schema self-documenting, which is

@@ -57,3 +57,15 @@ variable "discord_webhook_url" {
   type        = string
   sensitive   = true
 }
+
+variable "internal_trigger_secret" {
+  description = "Shared secret required (in the POST body) to call /internal/trigger - used by both the hourly forecast precompute and the daily snapshot archive EventBridge rules"
+  type        = string
+  sensitive   = true
+}
+
+variable "forecast_snapshot_secret" {
+  description = "Shared secret required (x-forecast-snapshot-secret header) to call recordForecastSnapshot/deleteForecastSnapshot"
+  type        = string
+  sensitive   = true
+}
