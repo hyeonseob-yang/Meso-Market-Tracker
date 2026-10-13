@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -59,9 +60,13 @@ VALID_PRICE_VARS = {
 }
 
 
+TEST_SNAPSHOT_SECRET = "test-snapshot-secret"
+
+
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setenv("RECORD_PRICE_SECRET", TEST_SECRET)
+    monkeypatch.setenv("FORECAST_SNAPSHOT_SECRET", TEST_SNAPSHOT_SECRET)
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
@@ -263,3 +268,155 @@ def test_health_query(client):
     assert response.status_code == 200
     body = json.loads(response.data)
     assert body["data"]["health"] == "ok"
+
+
+FORECAST_QUERY = """
+query { forecast { model points } }
+"""
+
+FORECAST_SNAPSHOTS_QUERY = """
+query { forecastSnapshots { id model points } }
+"""
+
+RECORD_FORECAST_SNAPSHOT_MUTATION = """
+mutation Save($history: JSON!, $points: JSON!, $model: String!) {
+  recordForecastSnapshot(history: $history, points: $points, model: $model) {
+    id createdAt model points
+  }
+}
+"""
+
+DELETE_FORECAST_SNAPSHOT_MUTATION = """
+mutation Delete($id: Int!) {
+  deleteForecastSnapshot(id: $id)
+}
+"""
+
+SAMPLE_FORECAST = SimpleNamespace(
+    model="AutoETS",
+    model_params={"sp": 24},
+    points=[{"datetime": "2026-10-13T00:00:00", "predicted": 100.0, "lower": 90.0, "upper": 110.0}],
+)
+
+SAMPLE_SNAPSHOT_RECORD = SimpleNamespace(
+    id=1,
+    created_at="2026-10-13T00:00:00+00:00",
+    model="AutoETS",
+    model_params={"sp": 24},
+    history=[{"datetime": "2026-10-01T00:00:00", "average": 1000}],
+    points=SAMPLE_FORECAST.points,
+)
+
+
+@patch("schema.get_forecast_cache", return_value=SAMPLE_FORECAST)
+def test_forecast_query_returns_cached_forecast(mock_get, client):
+    response = gql(client, FORECAST_QUERY)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["forecast"]["model"] == "AutoETS"
+    assert len(body["data"]["forecast"]["points"]) == 1
+
+
+@patch("schema.get_forecast_cache", return_value=None)
+def test_forecast_query_returns_null_before_first_precompute(mock_get, client):
+    response = gql(client, FORECAST_QUERY)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["forecast"] is None
+
+
+@patch("schema.get_forecast_snapshots", return_value=[SAMPLE_SNAPSHOT_RECORD])
+def test_forecast_snapshots_query_returns_records(mock_get, client):
+    response = gql(client, FORECAST_SNAPSHOTS_QUERY)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["forecastSnapshots"][0]["id"] == 1
+
+
+@patch("schema.get_forecast_snapshots", return_value=[])
+def test_forecast_snapshots_query_returns_empty_list(mock_get, client):
+    response = gql(client, FORECAST_SNAPSHOTS_QUERY)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["forecastSnapshots"] == []
+
+
+def _gql_snapshot_write(client, query, variables, secret=TEST_SNAPSHOT_SECRET):
+    return client.post(
+        "/price",
+        data=json.dumps({"query": query, "variables": variables}),
+        content_type="application/json",
+        headers={"x-forecast-snapshot-secret": secret},
+    )
+
+
+@patch("schema.insert_forecast_snapshot", return_value=1)
+def test_record_forecast_snapshot_returns_record(mock_insert, client):
+    vars = {"history": [{"datetime": "2026-10-01T00:00:00", "average": 1000}], "points": [], "model": "AutoETS"}
+    response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"]["recordForecastSnapshot"]["id"] == 1
+    assert body["data"]["recordForecastSnapshot"]["model"] == "AutoETS"
+
+
+@patch("schema.insert_forecast_snapshot", return_value=1)
+def test_record_forecast_snapshot_rejects_missing_secret(mock_insert, client):
+    vars = {"history": [], "points": [], "model": "AutoETS"}
+    response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars, secret="")
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Invalid or missing credentials" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_forecast_snapshot", return_value=1)
+def test_record_forecast_snapshot_rejects_wrong_secret(mock_insert, client):
+    vars = {"history": [], "points": [], "model": "AutoETS"}
+    response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars, secret="nope")
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Invalid or missing credentials" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_forecast_snapshot", return_value=1)
+def test_record_forecast_snapshot_fails_closed_when_unconfigured(mock_insert, client, monkeypatch):
+    monkeypatch.delenv("FORECAST_SNAPSHOT_SECRET", raising=False)
+    vars = {"history": [], "points": [], "model": "AutoETS"}
+    response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("not configured" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_forecast_snapshot", side_effect=RuntimeError("Unable to save forecast snapshot right now."))
+def test_record_forecast_snapshot_surfaces_database_failure(mock_insert, client):
+    vars = {"history": [], "points": [], "model": "AutoETS"}
+    response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Unable to save forecast snapshot" in e["message"] for e in body["errors"])
+
+
+@patch("schema.db_delete_forecast_snapshot", return_value=True)
+def test_delete_forecast_snapshot_returns_true(mock_delete, client):
+    response = _gql_snapshot_write(client, DELETE_FORECAST_SNAPSHOT_MUTATION, {"id": 1})
+    body = json.loads(response.data)
+    assert body["data"]["deleteForecastSnapshot"] is True
+
+
+@patch("schema.db_delete_forecast_snapshot", return_value=False)
+def test_delete_forecast_snapshot_returns_false_when_not_found(mock_delete, client):
+    response = _gql_snapshot_write(client, DELETE_FORECAST_SNAPSHOT_MUTATION, {"id": 999})
+    body = json.loads(response.data)
+    assert body["data"]["deleteForecastSnapshot"] is False
+
+
+@patch("schema.db_delete_forecast_snapshot", return_value=True)
+def test_delete_forecast_snapshot_rejects_wrong_secret(mock_delete, client):
+    response = _gql_snapshot_write(client, DELETE_FORECAST_SNAPSHOT_MUTATION, {"id": 1}, secret="nope")
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Invalid or missing credentials" in e["message"] for e in body["errors"])
+    mock_delete.assert_not_called()
