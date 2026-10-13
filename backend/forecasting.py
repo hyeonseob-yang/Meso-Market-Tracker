@@ -6,16 +6,12 @@ import pandas as pd
 from sktime.forecasting.ets import AutoETS
 from sktime.forecasting.naive import NaiveForecaster
 
+from config import MAX_TRAINING_DAYS
 from database import get_forecast_training_prices
 from models import Forecast, PriceRecord
 
 logger = logging.getLogger(__name__)
 
-# Compute-time safety valve, not a business lookback choice - benchmarked at
-# ~13s fit+predict, comfortable margin under the 30s Lambda timeout. Inert
-# today (real automated history is far shorter), only binds after months of
-# continuous collection.
-MAX_TRAINING_DAYS = 120
 MIN_DATA_POINTS_FOR_AUTOETS = 48
 _CONFIDENCE_COVERAGE = 0.9
 

@@ -44,7 +44,7 @@ def test_rejects_unknown_action(client):
 
 
 @patch("app.upsert_forecast_cache")
-@patch("app.compute_forecast", return_value=SAMPLE_FORECAST)
+@patch("forecasting.compute_forecast", return_value=SAMPLE_FORECAST)
 def test_precompute_action_calls_compute_and_upsert(mock_compute, mock_upsert, client):
     response = post(client, {"secret": TEST_SECRET, "action": "precompute"})
     assert response.status_code == 200

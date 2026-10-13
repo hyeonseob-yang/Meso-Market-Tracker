@@ -18,16 +18,28 @@ def _rows(*ages_minutes):
     return [{"datetime": (now - timedelta(minutes=m)).isoformat()} for m in ages_minutes]
 
 
-def _run(rows_or_none):
-    """Mocks _post: the GraphQL call returns the given rows (None simulates
-    an unreachable API); returns whatever text got sent to Discord."""
+def _forecast(age_minutes):
+    """A forecast { updatedAt } value aged by the given number of minutes,
+    or None to simulate a never-populated cache."""
+    if age_minutes is None:
+        return None
+    now = datetime.now(timezone.utc)
+    return {"updatedAt": (now - timedelta(minutes=age_minutes)).isoformat()}
+
+
+def _run(rows_or_none, forecast_age_minutes=30):
+    """Mocks _post: the GraphQL call returns the given rows and forecast
+    staleness (None rows simulates an unreachable API); returns whatever
+    text got sent to Discord."""
     notifications = []
 
     def fake_post(url, body):
         if url == handler.API_URL:
             if rows_or_none is None:
                 raise OSError("connection refused")
-            return json.dumps({"data": {"latestPrices": rows_or_none}}).encode()
+            return json.dumps(
+                {"data": {"latestPrices": rows_or_none, "forecast": _forecast(forecast_age_minutes)}}
+            ).encode()
         notifications.append(json.loads(body)["content"])
         return b"{}"
 
@@ -79,3 +91,34 @@ def test_unreachable_api_notifies():
     notifications = _run(None)
     assert len(notifications) == 1
     assert "couldn't reach" in notifications[0]
+
+
+def test_healthy_forecast_sends_no_notification():
+    assert _run(_rows(30, 90), forecast_age_minutes=20) == []
+
+
+def test_stale_forecast_in_first_band_notifies_once():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=100)
+    assert len(notifications) == 1
+    assert "forecast cache hasn't refreshed" in notifications[0]
+
+
+def test_stale_forecast_outside_bands_does_not_renotify():
+    assert _run(_rows(30, 90), forecast_age_minutes=200) == []
+
+
+def test_still_stale_forecast_after_six_hours_notifies_again():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=400)
+    assert len(notifications) == 1
+    assert "still stale" in notifications[0]
+
+
+def test_missing_forecast_notifies():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=None)
+    assert len(notifications) == 1
+    assert "no forecast has been computed yet" in notifications[0]
+
+
+def test_price_and_forecast_issues_both_notify_independently():
+    notifications = _run(_rows(100), forecast_age_minutes=100)
+    assert len(notifications) == 2

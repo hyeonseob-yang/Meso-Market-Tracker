@@ -195,7 +195,7 @@ def upsert_forecast_cache(model: str, model_params, points) -> None:
 
 
 def get_forecast_cache() -> Forecast | None:
-    sql = "SELECT model, model_params, points FROM forecast_cache WHERE id = 1"
+    sql = "SELECT model, model_params, points, updated_at FROM forecast_cache WHERE id = 1"
 
     try:
         conn = _get_conn()
@@ -209,7 +209,7 @@ def get_forecast_cache() -> Forecast | None:
     if not row:
         return None
 
-    return Forecast(model=row[0], model_params=row[1], points=row[2])
+    return Forecast(model=row[0], model_params=row[1], points=row[2], updated_at=str(row[3]))
 
 
 def insert_forecast_snapshot(history, points, model: str, model_params) -> int:

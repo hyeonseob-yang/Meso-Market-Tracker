@@ -35,8 +35,13 @@ resource "aws_lambda_function" "backend" {
   # After first `terraform apply`, build from ../Dockerfile, push, then re-apply
   image_uri = "${aws_ecr_repository.backend.repository_url}:latest"
 
-  timeout     = 30
-  memory_size = 512
+  # 1769MB is the exact 1-vCPU boundary (AWS allocates CPU proportional to
+  # memory) - AutoETS runs single-threaded (n_jobs=1), so more than that
+  # wouldn't help. 60s timeout: precompute/snapshot_daily are invoked
+  # directly by EventBridge (bypassing API Gateway's own 30s cap entirely),
+  # so raising this doesn't change /price's client-facing timeout at all.
+  timeout     = 60
+  memory_size = 1769
 
   environment {
     variables = {

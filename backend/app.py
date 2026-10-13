@@ -4,13 +4,13 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, request
 from strawberry.flask.views import GraphQLView
 
+from config import MAX_TRAINING_DAYS
 from database import (
     get_forecast_cache,
     get_forecast_training_prices,
     insert_forecast_snapshot,
     upsert_forecast_cache,
 )
-from forecasting import MAX_TRAINING_DAYS, compute_forecast
 from schema import schema
 
 app = Flask(__name__)
@@ -43,6 +43,12 @@ def internal_trigger():
 
     action = body.get("action")
     if action == "precompute":
+        # Deferred: forecasting.py pulls in sktime/pandas/statsmodels, which
+        # would otherwise tax every cold start - including /price and
+        # snapshot_daily, neither of which need it. Only this branch pays
+        # the import cost, and only once per warm container.
+        from forecasting import compute_forecast
+
         forecast = compute_forecast()
         upsert_forecast_cache(forecast.model, forecast.model_params, forecast.points)
     elif action == "snapshot_daily":

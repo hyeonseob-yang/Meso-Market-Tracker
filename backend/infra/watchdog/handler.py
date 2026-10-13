@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 API_URL = os.environ["TRACKER_API_URL"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
-QUERY = '{"query": "{ latestPrices(limit: 2) { datetime } }"}'
+QUERY = '{"query": "{ latestPrices(limit: 2) { datetime } forecast { updatedAt } }"}'
 
 
 def _post(url: str, body: str) -> bytes:
@@ -34,12 +34,8 @@ def _notify(text: str) -> None:
     _post(WEBHOOK_URL, json.dumps({"content": text}))
 
 
-def handler(event, context):
-    try:
-        rows = json.loads(_post(API_URL, QUERY))["data"]["latestPrices"]
-    except (urllib.error.URLError, OSError, KeyError, ValueError) as error:
-        _notify(f"Meso Market: watchdog couldn't reach the Tracker API: {error}")
-        return
+def _check_prices(data: dict) -> None:
+    rows = data["latestPrices"]
 
     if not rows:
         _notify("Meso Market: Tracker returned no rows - is the database paused?")
@@ -62,3 +58,37 @@ def handler(event, context):
         _notify(f"Meso Market: still no new row after {age / 60:.0f} hours.")
     elif age < 60 and gap is not None and gap >= 90:
         _notify(f"Meso Market: collection resumed after a {gap / 60:.1f} hour gap.")
+
+
+def _check_forecast(data: dict) -> None:
+    forecast = data.get("forecast")
+
+    if forecast is None:
+        # Expected briefly right after a fresh deploy (before the first
+        # hourly precompute run); genuinely wrong to stay this way for
+        # long, which the 390+ band below would still catch once there
+        # was ever a real forecast.updatedAt to go stale.
+        _notify("Meso Market: no forecast has been computed yet.")
+        return
+
+    updated_at = datetime.fromisoformat(forecast["updatedAt"])
+    age = (datetime.now(timezone.utc) - updated_at).total_seconds() / 60
+
+    # Precompute runs hourly at :10, this check at :30 - same 90/390 min
+    # bands as the price check, for the same reason (one missed cycle vs.
+    # a sustained outage), since both run on the same hourly cadence.
+    if 90 <= age < 150:
+        _notify(f"Meso Market: forecast cache hasn't refreshed in {age:.0f} min.")
+    elif 390 <= age < 450:
+        _notify(f"Meso Market: forecast cache still stale after {age / 60:.0f} hours.")
+
+
+def handler(event, context):
+    try:
+        data = json.loads(_post(API_URL, QUERY))["data"]
+    except (urllib.error.URLError, OSError, KeyError, ValueError) as error:
+        _notify(f"Meso Market: watchdog couldn't reach the Tracker API: {error}")
+        return
+
+    _check_prices(data)
+    _check_forecast(data)

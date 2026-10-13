@@ -200,7 +200,7 @@ def test_get_forecast_cache_returns_none_when_no_row():
 def test_get_forecast_cache_returns_forecast_when_row_present():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchone.return_value = ("AutoETS", {"sp": 24}, [{"datetime": "x"}])
+    cur.fetchone.return_value = ("AutoETS", {"sp": 24}, [{"datetime": "x"}], "2026-10-13T06:09:45+00:00")
 
     with patch("database._get_conn", return_value=conn):
         forecast = get_forecast_cache()
@@ -208,6 +208,7 @@ def test_get_forecast_cache_returns_forecast_when_row_present():
     assert forecast.model == "AutoETS"
     assert forecast.model_params == {"sp": 24}
     assert forecast.points == [{"datetime": "x"}]
+    assert forecast.updated_at == "2026-10-13T06:09:45+00:00"
 
 
 def test_get_forecast_cache_raises_on_connection_failure():
