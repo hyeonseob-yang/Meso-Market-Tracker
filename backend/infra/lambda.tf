@@ -37,10 +37,13 @@ resource "aws_lambda_function" "backend" {
 
   # 1769MB is the exact 1-vCPU boundary (AWS allocates CPU proportional to
   # memory) - AutoETS runs single-threaded (n_jobs=1), so more than that
-  # wouldn't help. 60s timeout: precompute/snapshot_daily are invoked
-  # directly by EventBridge (bypassing API Gateway's own 30s cap entirely),
-  # so raising this doesn't change /price's client-facing timeout at all.
-  timeout     = 60
+  # wouldn't help. 300s timeout: observed 45s on real (small) training data
+  # on Lambda - notably slower than local benchmarks suggested - so this
+  # leaves real headroom as the training window grows toward its 120-day
+  # cap. precompute/snapshot_daily are invoked directly by EventBridge
+  # (bypassing API Gateway's own 30s cap entirely), so raising this doesn't
+  # change /price's client-facing timeout at all.
+  timeout     = 300
   memory_size = 1769
 
   environment {
