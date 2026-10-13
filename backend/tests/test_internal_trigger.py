@@ -7,7 +7,12 @@ from app import app
 
 TEST_SECRET = "test-trigger-secret"
 
-SAMPLE_FORECAST = SimpleNamespace(model="AutoETS", model_params={"sp": 24}, points=[{"datetime": "x"}])
+SAMPLE_FORECAST = SimpleNamespace(
+    model="AutoETS",
+    model_params={"sp": 24},
+    points=[{"datetime": "x"}],
+    history=[{"datetime": "y", "average": 1000}],
+)
 
 
 @pytest.fixture
@@ -49,16 +54,19 @@ def test_precompute_action_calls_compute_and_upsert(mock_compute, mock_upsert, c
     response = post(client, {"secret": TEST_SECRET, "action": "precompute"})
     assert response.status_code == 200
     mock_compute.assert_called_once()
-    mock_upsert.assert_called_once_with("AutoETS", {"sp": 24}, [{"datetime": "x"}])
+    mock_upsert.assert_called_once_with(
+        "AutoETS", {"sp": 24}, [{"datetime": "x"}], [{"datetime": "y", "average": 1000}]
+    )
 
 
 @patch("app.insert_forecast_snapshot")
-@patch("app.get_forecast_training_prices", return_value=[])
 @patch("app.get_forecast_cache", return_value=SAMPLE_FORECAST)
-def test_snapshot_daily_action_archives_the_cache(mock_cache, mock_training, mock_insert, client):
+def test_snapshot_daily_action_archives_the_cache(mock_cache, mock_insert, client):
     response = post(client, {"secret": TEST_SECRET, "action": "snapshot_daily"})
     assert response.status_code == 200
-    mock_insert.assert_called_once_with([], SAMPLE_FORECAST.points, SAMPLE_FORECAST.model, SAMPLE_FORECAST.model_params)
+    mock_insert.assert_called_once_with(
+        SAMPLE_FORECAST.history, SAMPLE_FORECAST.points, SAMPLE_FORECAST.model, SAMPLE_FORECAST.model_params
+    )
 
 
 @patch("app.insert_forecast_snapshot")

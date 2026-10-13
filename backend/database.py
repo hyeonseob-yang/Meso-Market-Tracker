@@ -170,15 +170,16 @@ def get_forecast_training_prices(since: str | None = None) -> list[PriceRecord]:
         raise RuntimeError("Unable to fetch forecast training prices right now.") from error
 
 
-def upsert_forecast_cache(model: str, model_params, points) -> None:
+def upsert_forecast_cache(model: str, model_params, points, history) -> None:
     sql = """
-        INSERT INTO forecast_cache (id, model, model_params, points)
-        VALUES (1, %s, %s, %s)
+        INSERT INTO forecast_cache (id, model, model_params, points, history)
+        VALUES (1, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             updated_at = now(),
             model = EXCLUDED.model,
             model_params = EXCLUDED.model_params,
-            points = EXCLUDED.points
+            points = EXCLUDED.points,
+            history = EXCLUDED.history
     """
 
     try:
@@ -186,7 +187,12 @@ def upsert_forecast_cache(model: str, model_params, points) -> None:
         with conn.cursor() as cur:
             cur.execute(
                 sql,
-                (model, Json(model_params) if model_params is not None else None, Json(points)),
+                (
+                    model,
+                    Json(model_params) if model_params is not None else None,
+                    Json(points),
+                    Json(history),
+                ),
             )
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
@@ -195,7 +201,7 @@ def upsert_forecast_cache(model: str, model_params, points) -> None:
 
 
 def get_forecast_cache() -> Forecast | None:
-    sql = "SELECT model, model_params, points, updated_at FROM forecast_cache WHERE id = 1"
+    sql = "SELECT model, model_params, points, history, updated_at FROM forecast_cache WHERE id = 1"
 
     try:
         conn = _get_conn()
@@ -209,7 +215,7 @@ def get_forecast_cache() -> Forecast | None:
     if not row:
         return None
 
-    return Forecast(model=row[0], model_params=row[1], points=row[2], updated_at=str(row[3]))
+    return Forecast(model=row[0], model_params=row[1], points=row[2], history=row[3], updated_at=str(row[4]))
 
 
 def insert_forecast_snapshot(history, points, model: str, model_params) -> int:

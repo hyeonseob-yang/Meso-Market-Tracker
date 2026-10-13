@@ -35,6 +35,7 @@ class Forecast:
     model: str
     model_params: JSON | None
     points: JSON  # list[{datetime, predicted, lower, upper}]
+    history: JSON  # list[{datetime, average}] - the actual training data used, notes='manual' already excluded
     updated_at: str | None = None  # only set when read back from the cache (get_forecast_cache)
 
 

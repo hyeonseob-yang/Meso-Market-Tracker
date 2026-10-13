@@ -5,7 +5,12 @@ import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
 
-export type Forecast = { model: string; modelParams: Record<string, unknown> | null; points: ForecastPoint[] };
+export type Forecast = {
+  model: string;
+  modelParams: Record<string, unknown> | null;
+  points: ForecastPoint[];
+  history: PriceRow[];
+};
 export type ForecastSnapshot = {
   id: number;
   createdAt: string;
@@ -16,7 +21,7 @@ export type ForecastSnapshot = {
 };
 
 const FORECAST_QUERY = `
-  query { forecast { model modelParams points } }
+  query { forecast { model modelParams points history } }
 `;
 
 const FORECAST_SNAPSHOTS_QUERY = `

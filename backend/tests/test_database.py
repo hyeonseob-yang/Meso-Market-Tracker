@@ -162,13 +162,14 @@ def test_upsert_forecast_cache_wraps_jsonb_columns():
     cur = conn.cursor.return_value.__enter__.return_value
 
     with patch("database._get_conn", return_value=conn):
-        upsert_forecast_cache("AutoETS", {"sp": 24}, [{"datetime": "x"}])
+        upsert_forecast_cache("AutoETS", {"sp": 24}, [{"datetime": "x"}], [{"datetime": "y", "average": 1000}])
 
     sql, params = cur.execute.call_args[0]
     assert "ON CONFLICT (id) DO UPDATE" in sql
     assert params[0] == "AutoETS"
     assert isinstance(params[1], Json)
     assert isinstance(params[2], Json)
+    assert isinstance(params[3], Json)
 
 
 def test_upsert_forecast_cache_passes_plain_none_when_model_params_absent():
@@ -176,7 +177,7 @@ def test_upsert_forecast_cache_passes_plain_none_when_model_params_absent():
     cur = conn.cursor.return_value.__enter__.return_value
 
     with patch("database._get_conn", return_value=conn):
-        upsert_forecast_cache("NaiveForecaster", None, [])
+        upsert_forecast_cache("NaiveForecaster", None, [], [])
 
     _, params = cur.execute.call_args[0]
     assert params[1] is None
@@ -185,7 +186,7 @@ def test_upsert_forecast_cache_passes_plain_none_when_model_params_absent():
 def test_upsert_forecast_cache_raises_on_connection_failure():
     with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
         with pytest.raises(RuntimeError, match="Unable to save the precomputed forecast"):
-            upsert_forecast_cache("AutoETS", None, [])
+            upsert_forecast_cache("AutoETS", None, [], [])
 
 
 def test_get_forecast_cache_returns_none_when_no_row():
@@ -200,7 +201,13 @@ def test_get_forecast_cache_returns_none_when_no_row():
 def test_get_forecast_cache_returns_forecast_when_row_present():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchone.return_value = ("AutoETS", {"sp": 24}, [{"datetime": "x"}], "2026-10-13T06:09:45+00:00")
+    cur.fetchone.return_value = (
+        "AutoETS",
+        {"sp": 24},
+        [{"datetime": "x"}],
+        [{"datetime": "y", "average": 1000}],
+        "2026-10-13T06:09:45+00:00",
+    )
 
     with patch("database._get_conn", return_value=conn):
         forecast = get_forecast_cache()
@@ -208,6 +215,7 @@ def test_get_forecast_cache_returns_forecast_when_row_present():
     assert forecast.model == "AutoETS"
     assert forecast.model_params == {"sp": 24}
     assert forecast.points == [{"datetime": "x"}]
+    assert forecast.history == [{"datetime": "y", "average": 1000}]
     assert forecast.updated_at == "2026-10-13T06:09:45+00:00"
 
 

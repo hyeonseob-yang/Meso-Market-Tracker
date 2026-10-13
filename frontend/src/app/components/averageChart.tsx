@@ -81,7 +81,10 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
   async function handleSaveSnapshot() {
     if (!forecast) return;
     setIsSaving(true);
-    const saved = await saveForecastSnapshot(prices, forecast.points, forecast.model, forecast.modelParams);
+    // forecast.history is the actual training data the model was fit on
+    // (manual/test entries already excluded) - not `prices`, which is
+    // whatever window is currently displayed and may include those.
+    const saved = await saveForecastSnapshot(forecast.history, forecast.points, forecast.model, forecast.modelParams);
     setIsSaving(false);
     if (saved) {
       setJustSaved(true);

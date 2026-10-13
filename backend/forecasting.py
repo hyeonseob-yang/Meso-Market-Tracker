@@ -88,4 +88,6 @@ def compute_forecast() -> Forecast:
         for ts, p, lo, hi in zip(timestamps, predicted_values, lower, upper)
     ]
 
-    return Forecast(model=model_name, model_params=model_params, points=points)
+    history = [{"datetime": r.datetime, "average": r.average} for r in records]
+
+    return Forecast(model=model_name, model_params=model_params, points=points, history=history)
