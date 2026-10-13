@@ -40,11 +40,9 @@ class Forecast:
 
     @strawberry.field
     def history(self) -> JSON:
-        """Resolved on read, not stored - the last history_count non-manual
-        price records before updated_at. Reconstructing this from the price
-        table (rather than storing a frozen copy) trades a small chance of
-        drift from a later backfill for roughly half the storage per row -
-        acceptable since this is for rough display, not exact replication."""
+        """Computed on read, not stored - the last history_count non-manual
+        records before updated_at. Can drift slightly if a backfill lands
+        afterward; acceptable for display purposes."""
         if self.updated_at is None:
             return []
         from database import get_recent_training_prices

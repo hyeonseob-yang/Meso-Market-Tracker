@@ -22,13 +22,10 @@ app.add_url_rule(
 
 @app.route("/internal/trigger", methods=["POST"])
 def internal_trigger():
-    """Reached two ways: EventBridge invoking this Lambda directly (the
-    legitimate path - see infra/, Lambda Web Adapter's pass-through-path
-    feature forwards that invocation's event payload here as the POST
-    body), or the public internet via API Gateway's $default catch-all
-    route (since this path isn't otherwise restricted) - hence the secret
-    check. Both scheduled triggers share this one route/secret since the
-    adapter only supports a single pass-through path per function."""
+    """Reached two ways: EventBridge invoking this Lambda directly (see
+    infra/), or the public internet via API Gateway's $default route -
+    hence the secret check. Both scheduled triggers share this route since
+    the Lambda Web Adapter only supports one pass-through path per function."""
     expected = os.environ.get("INTERNAL_TRIGGER_SECRET")
     body = request.get_json(silent=True) or {}
     if not expected or body.get("secret") != expected:
@@ -37,9 +34,8 @@ def internal_trigger():
     action = body.get("action")
     if action == "precompute":
         # Deferred: forecasting.py pulls in sktime/pandas/statsmodels, which
-        # would otherwise tax every cold start - including /price and
-        # snapshot_daily, neither of which need it. Only this branch pays
-        # the import cost, and only once per warm container.
+        # would otherwise tax every cold start, including requests that
+        # never touch forecasting.
         from forecasting import compute_forecast
 
         forecast = compute_forecast()

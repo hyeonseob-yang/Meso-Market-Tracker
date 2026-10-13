@@ -12,14 +12,11 @@ from models import Forecast, PriceRecord
 
 logger = logging.getLogger(__name__)
 
-# Trying a weekly cycle instead of daily, to check for a weekday correlation
-# the daily setting (sp=24) can't see. Named so the model tag in saved
-# snapshots (f"AutoETS(sp={SEASONAL_PERIOD_HOURS})") distinguishes forecasts
-# made under this setting from ones made under a different one later.
+# The seasonal period AutoETS searches for. The model tag encodes it
+# (f"AutoETS(sp={SEASONAL_PERIOD_HOURS})") so snapshots stay distinguishable
+# if this value changes later.
 SEASONAL_PERIOD_HOURS = 24 * 7
-# 2 full cycles minimum, scaled to whichever period is configured above -
-# sktime itself refuses to fit below this anyway, but checking it ourselves
-# avoids wastefully attempting (and waiting on) a doomed fit every run.
+# 2 full cycles minimum - avoids attempting a fit sktime would refuse anyway.
 MIN_DATA_POINTS_FOR_AUTOETS = 2 * SEASONAL_PERIOD_HOURS
 _CONFIDENCE_COVERAGE = 0.9
 

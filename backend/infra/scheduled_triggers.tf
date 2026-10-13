@@ -1,10 +1,8 @@
-# Two EventBridge rules invoking the main backend Lambda directly (not
-# through API Gateway) - the Lambda Web Adapter's pass-through-path feature
-# forwards each invocation's event payload to AWS_LWA_PASS_THROUGH_PATH as
-# a POST body, which app.py's /internal/trigger route reads. Both share
-# that one route/secret since the adapter only supports a single
-# pass-through path per function - the `action` field in each rule's
-# input dispatches to the right behavior.
+# Both rules invoke the backend Lambda directly (not via API Gateway) - the
+# Lambda Web Adapter forwards the invocation payload to app.py's
+# /internal/trigger route as a POST body. They share that route/secret
+# since the adapter only supports one pass-through path per function; the
+# `action` field dispatches to the right behavior.
 
 resource "aws_cloudwatch_event_rule" "forecast_precompute_schedule" {
   name                = "meso-market-forecast-precompute"

@@ -139,12 +139,9 @@ def get_latest_prices(limit: int = 2) -> list[PriceRecord]:
 
 
 def get_forecast_training_prices(since: str | None = None) -> list[PriceRecord]:
-    """Same shape as get_prices, but excludes notes = 'manual' - those are
-    scattered test/backfill entries, not the automated Collector feed, and
-    would otherwise dilute the resampled series with sparse, irregular
-    history. Deliberately separate from get_prices: that one serves the
-    full displayed chart, where manual entries are still real data points
-    worth showing."""
+    """Same shape as get_prices, but excludes notes = 'manual' (test/backfill
+    entries, not the automated Collector feed). Separate from get_prices,
+    which still shows manual entries on the full displayed chart."""
     conditions = ["notes != 'manual'"]
     params: list = []
     if since is not None:
@@ -172,9 +169,8 @@ def get_forecast_training_prices(since: str | None = None) -> list[PriceRecord]:
 
 def get_recent_training_prices(before: str, limit: int) -> list[PriceRecord]:
     """The last `limit` non-manual price records at or before `before`,
-    oldest-first - used to reconstruct a Forecast/ForecastSnapshotRecord's
-    `history` field on read from just a count + anchor timestamp, rather
-    than a frozen copy. See models.Forecast.history."""
+    oldest-first. Used to resolve a Forecast/ForecastSnapshotRecord's
+    `history` field - see models.Forecast.history."""
     sql = """
         SELECT id, datetime, average, buy100M, buy1B, buy10B,
                sell100M, sell1B, sell10B, notes

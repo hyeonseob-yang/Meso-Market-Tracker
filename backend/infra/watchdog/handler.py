@@ -64,10 +64,8 @@ def _check_forecast(data: dict) -> None:
     forecast = data.get("forecast")
 
     if forecast is None:
-        # Expected briefly right after a fresh deploy (before the first
-        # hourly precompute run); genuinely wrong to stay this way for
-        # long, which the 390+ band below would still catch once there
-        # was ever a real forecast.updatedAt to go stale.
+        # Notifies unconditionally, same as the no-rows case above - fine
+        # briefly after a fresh deploy, wrong if it stays this way.
         _notify("Meso Market: no forecast has been computed yet.")
         return
 
