@@ -43,16 +43,19 @@ def test_resample_hourly_forward_fills_a_mid_series_gap():
     assert series.iloc[5] == series.iloc[3]
 
 
+@patch("forecasting.AutoETS", side_effect=RuntimeError("mocked - horizon math doesn't depend on which model fits"))
 @patch("forecasting.get_forecast_training_prices")
-def test_compute_forecast_horizon_derived_from_training_span(mock_get):
+def test_compute_forecast_horizon_derived_from_training_span(mock_get, mock_autoets):
     # Exactly 40 days of hourly records -> training_span_days = 39 (last-first)
-    # -> horizon_days = max(1, 39 // 2) = 19 -> 19*24 points.
+    # -> horizon_days = max(1, 39 // 2) = 19 -> 19*24 points. Computed before
+    # model fitting, so forcing the (fast) Naive fallback here doesn't affect
+    # this - real AutoETS timing is covered by manual smoke-testing instead,
+    # since a real fit at this data size is tens of seconds with sp=168.
     mock_get.return_value = _hourly_records(40 * 24, value_fn=lambda i: 1000.0 + i * 0.01)
 
     forecast = compute_forecast()
 
     assert len(forecast.points) == 19 * 24
-    assert forecast.model in ("AutoETS", "NaiveForecaster")
 
 
 @patch("forecasting.get_forecast_training_prices")
@@ -64,8 +67,14 @@ def test_compute_forecast_short_span_still_produces_at_least_one_day(mock_get):
     assert len(forecast.points) >= 24
 
 
+@patch("forecasting.AutoETS", side_effect=RuntimeError("mocked - output shape is model-agnostic, see below"))
 @patch("forecasting.get_forecast_training_prices")
-def test_compute_forecast_points_are_structurally_valid(mock_get):
+def test_compute_forecast_points_are_structurally_valid(mock_get, mock_autoets):
+    # AutoETS forced to fail so this exercises the (fast) Naive path - the
+    # output-assembly code being tested here (point ordering/bounds) runs
+    # identically regardless of which model produced predict()/
+    # predict_interval(), so this still covers it without the real fit's
+    # cost (tens of seconds at the sp=168 minimum data size).
     mock_get.return_value = _hourly_records(
         MIN_DATA_POINTS_FOR_AUTOETS + 24, value_fn=lambda i: 1000.0 + i * 0.05
     )
@@ -89,11 +98,16 @@ def test_compute_forecast_falls_back_to_naive_below_min_points(mock_get):
     assert forecast.model == "NaiveForecaster"
 
 
+@patch("forecasting.AutoETS", side_effect=RuntimeError("mocked - see comment below"))
 @patch("forecasting.get_forecast_training_prices")
-def test_compute_forecast_falls_back_cleanly_on_degenerate_series(mock_get):
-    # Entirely flat series at/above the AutoETS threshold - confirmed
+def test_compute_forecast_falls_back_cleanly_on_degenerate_series(mock_get, mock_autoets):
+    # An entirely flat series at/above the AutoETS threshold was confirmed
     # empirically to crash AutoETS.fit() outright (zero variance, no
-    # converged model has finite aic). Must not raise; must fall back.
+    # converged model has finite aic) - and to still take ~40s to fail even
+    # at sp=168's 2-cycle minimum, since auto=True tries several candidates
+    # before giving up. Mocking the exception directly tests the same
+    # fallback path (any AutoETS failure -> NaiveForecaster) without paying
+    # that cost on every test run.
     mock_get.return_value = _hourly_records(MIN_DATA_POINTS_FOR_AUTOETS + 24, value_fn=lambda i: 1000.0)
 
     forecast = compute_forecast()

@@ -12,7 +12,15 @@ from models import Forecast, PriceRecord
 
 logger = logging.getLogger(__name__)
 
-MIN_DATA_POINTS_FOR_AUTOETS = 48
+# Trying a weekly cycle instead of daily, to check for a weekday correlation
+# the daily setting (sp=24) can't see. Named so the model tag in saved
+# snapshots (f"AutoETS(sp={SEASONAL_PERIOD_HOURS})") distinguishes forecasts
+# made under this setting from ones made under a different one later.
+SEASONAL_PERIOD_HOURS = 24 * 7
+# 2 full cycles minimum, scaled to whichever period is configured above -
+# sktime itself refuses to fit below this anyway, but checking it ourselves
+# avoids wastefully attempting (and waiting on) a doomed fit every run.
+MIN_DATA_POINTS_FOR_AUTOETS = 2 * SEASONAL_PERIOD_HOURS
 _CONFIDENCE_COVERAGE = 0.9
 
 
@@ -32,9 +40,10 @@ def resample_hourly(records: list[PriceRecord]) -> pd.Series:
 def _fit_model(series: pd.Series) -> tuple[str, dict, object]:
     if len(series) >= MIN_DATA_POINTS_FOR_AUTOETS:
         try:
-            model = AutoETS(auto=True, sp=24, n_jobs=1)
+            model = AutoETS(auto=True, sp=SEASONAL_PERIOD_HOURS, n_jobs=1)
             model.fit(series)
-            return "AutoETS", {"auto": True, "sp": 24}, model
+            model_name = f"AutoETS(sp={SEASONAL_PERIOD_HOURS})"
+            return model_name, {"auto": True, "sp": SEASONAL_PERIOD_HOURS}, model
         except Exception as error:
             logger.warning("AutoETS fit failed, falling back to NaiveForecaster: %s", error)
 
