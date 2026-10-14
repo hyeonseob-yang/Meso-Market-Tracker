@@ -48,18 +48,16 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
   const [prices, setPrices] = useState(initialPrices);
   const [showForecast, setShowForecast] = useState(false);
   const [forecast, setForecast] = useState<Forecast | null>(null);
-  const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastLoading, setForecastLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  // Fetched once on mount, not gated on showForecast - it's a single small,
+  // server-cached (5 min) row, so there's nothing to gain by deferring it
+  // until the toggle is clicked, only a visible delay on first toggle.
   useEffect(() => {
-    if (!showForecast) {
-      setForecast(null);
-      return;
-    }
     let cancelled = false;
-    setForecastLoading(true);
     fetchForecast().then((result) => {
       if (!cancelled) {
         setForecast(result);
@@ -69,7 +67,9 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
     return () => {
       cancelled = true;
     };
-  }, [showForecast]);
+  }, []);
+
+  const visiblePoints = showForecast ? forecast?.points ?? [] : [];
 
   function selectWindow(window: (typeof WINDOWS)[number]) {
     setSelected(window.label);
@@ -144,8 +144,8 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
         </div>
       </div>
       <Line
-        options={buildChartOptions(computeSpanDays(prices, forecast?.points ?? []))}
-        data={buildChartData(prices, forecast?.points ?? [])}
+        options={buildChartOptions(computeSpanDays(prices, visiblePoints))}
+        data={buildChartData(prices, visiblePoints)}
       />
       {showForecast && forecastLoading && <p className="mt-2 text-xs text-gray-500">Loading forecast…</p>}
       {showForecast && forecast && (
