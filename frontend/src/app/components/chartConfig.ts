@@ -80,10 +80,13 @@ export function forecastDatasets(
   ];
 }
 
-// History + forecast together.
+// History + forecast, optionally with the real data recorded over the same
+// span as the forecast (for comparing a saved snapshot against what
+// actually happened).
 export function buildChartData(
   history: PriceRow[],
   forecast: ForecastPoint[],
+  actual: PriceRow[] = [],
 ): ChartData<"line", { x: string; y: number }[]> {
   const anchor = history[history.length - 1] ?? null;
   return {
@@ -94,6 +97,49 @@ export function buildChartData(
         borderColor: "#1d4ed8",
       },
       ...forecastDatasets(anchor, forecast),
+      ...(actual.length > 0
+        ? [
+            {
+              label: "Actual",
+              data: actual.map((p) => ({ x: p.datetime, y: p.average })),
+              borderColor: "#16a34a",
+              pointRadius: 2,
+            },
+          ]
+        : []),
     ],
   };
+}
+
+export type AccuracyMetrics = { n: number; mae: number; mape: number };
+
+// Matches each actual reading to its nearest predicted point (within half
+// an hour, since predictions are hourly) and averages the error - only
+// over whatever portion of the forecast horizon has actually elapsed.
+export function computeAccuracy(points: ForecastPoint[], actual: PriceRow[]): AccuracyMetrics {
+  const MAX_MATCH_MS = 30 * 60 * 1000;
+  let sumAbsError = 0;
+  let sumPctError = 0;
+  let n = 0;
+
+  for (const a of actual) {
+    const t = new Date(a.datetime).getTime();
+    let nearest: ForecastPoint | null = null;
+    let nearestDist = Infinity;
+    for (const p of points) {
+      const dist = Math.abs(new Date(p.datetime).getTime() - t);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = p;
+      }
+    }
+    if (nearest && nearestDist <= MAX_MATCH_MS) {
+      const error = Math.abs(a.average - nearest.predicted);
+      sumAbsError += error;
+      sumPctError += (error / a.average) * 100;
+      n += 1;
+    }
+  }
+
+  return n > 0 ? { n, mae: sumAbsError / n, mape: sumPctError / n } : { n: 0, mae: 0, mape: 0 };
 }
