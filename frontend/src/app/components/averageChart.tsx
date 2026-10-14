@@ -19,7 +19,7 @@ import { Line } from "react-chartjs-2";
 
 import { fetchPrices } from "../actions";
 import { fetchForecast, saveForecastSnapshot, type Forecast } from "../forecastActions";
-import { buildChartData, buildChartOptions, computeSpanDays, type PriceRow } from "./chartConfig";
+import { buildChartData, chartOptions, type PriceRow } from "./chartConfig";
 
 ChartJS.register(
   Colors,
@@ -143,10 +143,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           </button>
         </div>
       </div>
-      <Line
-        options={buildChartOptions(computeSpanDays(prices, forecast?.points ?? []))}
-        data={buildChartData(prices, forecast?.points ?? [])}
-      />
+      <Line options={chartOptions} data={buildChartData(prices, forecast?.points ?? [])} />
       {showForecast && forecastLoading && <p className="mt-2 text-xs text-gray-500">Loading forecast…</p>}
       {showForecast && forecast && (
         <p className="mt-2 text-xs text-gray-500">Model: {forecast.model}</p>
