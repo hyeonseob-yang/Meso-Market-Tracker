@@ -4,48 +4,67 @@ export type PriceRow = { datetime: string; average: number };
 
 export type ForecastPoint = { datetime: string; predicted: number; lower: number; upper: number };
 
-export const chartOptions = {
-  responsive: true,
-  plugins: {
-    legend: {
-      position: "top" as const,
-      labels: {
-        // The upper/lower bound datasets exist only to shade the
-        // confidence band - don't give them their own legend entries.
-        filter: (item: { text: string }) => item.text !== "Forecast range",
-      },
-    },
-  },
-  scales: {
-    x: {
-      type: "time" as const,
-      time: {
-        tooltipFormat: "MMM d, yyyy HH:mm",
-        displayFormats: {
-          hour: "h a",
-          day: "EEE",
-          week: "MMM d",
-          month: "MMM yyyy",
+// A span this short or shorter always gets bare weekday names on the x-axis,
+// regardless of which unit Chart.js's own auto-detection would otherwise pick.
+const WEEKDAY_LABEL_MAX_SPAN_DAYS = 9;
+
+export function buildChartOptions(spanDays: number) {
+  const useWeekdayNames = spanDays <= WEEKDAY_LABEL_MAX_SPAN_DAYS;
+  return {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: {
+          // The upper/lower bound datasets exist only to shade the
+          // confidence band - don't give them their own legend entries.
+          filter: (item: { text: string }) => item.text !== "Forecast range",
         },
       },
-      ticks: {
-        autoSkip: true,
-        maxTicksLimit: 8,
-        maxRotation: 0,
+    },
+    scales: {
+      x: {
+        type: "time" as const,
+        time: {
+          tooltipFormat: "MMM d, yyyy HH:mm",
+          unit: useWeekdayNames ? ("day" as const) : undefined,
+          displayFormats: {
+            hour: "h a",
+            day: useWeekdayNames ? "EEE" : "MMM d",
+            week: "MMM d",
+            month: "MMM yyyy",
+          },
+        },
+        ticks: {
+          autoSkip: true,
+          maxTicksLimit: 8,
+          maxRotation: 0,
+        },
+        title: {
+          display: true,
+          text: "Date",
+        },
       },
-      title: {
-        display: true,
-        text: "Date",
+      y: {
+        title: {
+          display: true,
+          text: "Price",
+        },
       },
     },
-    y: {
-      title: {
-        display: true,
-        text: "Price",
-      },
-    },
-  },
-};
+  };
+}
+
+// Earliest-to-latest spread across whatever's actually plotted, in days.
+export function computeSpanDays(
+  history: PriceRow[],
+  forecast: ForecastPoint[] = [],
+  actual: PriceRow[] = [],
+): number {
+  const times = [...history, ...forecast, ...actual].map((p) => new Date(p.datetime).getTime());
+  if (times.length < 2) return 0;
+  return (Math.max(...times) - Math.min(...times)) / (24 * 60 * 60 * 1000);
+}
 
 // Shared by the live chart and the saved-snapshot viewer.
 export function forecastDatasets(
