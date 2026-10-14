@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Chart as ChartJS,
   Colors,
+  Filler,
   Legend,
   LinearScale,
   LineElement,
@@ -29,6 +30,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
 );
 
 export default function SnapshotChart({ snapshot }: { snapshot: ForecastSnapshot }) {

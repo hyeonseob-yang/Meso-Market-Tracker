@@ -5,6 +5,7 @@ import { subDays, subMonths, subYears } from "date-fns";
 import {
   Chart as ChartJS,
   Colors,
+  Filler,
   Legend,
   LinearScale,
   LineElement,
@@ -29,6 +30,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
 );
 
 const WINDOWS = [
