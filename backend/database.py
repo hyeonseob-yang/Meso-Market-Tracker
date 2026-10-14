@@ -170,16 +170,42 @@ def get_forecast_training_prices(since: str | None = None) -> list[PriceRecord]:
         raise RuntimeError("Unable to fetch forecast training prices right now.") from error
 
 
-def upsert_forecast_cache(model: str, model_params, points, history) -> None:
+def get_recent_training_prices(before: str, limit: int) -> list[PriceRecord]:
+    """The last `limit` non-manual price records at or before `before`,
+    oldest-first - used to reconstruct a Forecast/ForecastSnapshotRecord's
+    `history` field on read from just a count + anchor timestamp, rather
+    than a frozen copy. See models.Forecast.history."""
     sql = """
-        INSERT INTO forecast_cache (id, model, model_params, points, history)
+        SELECT id, datetime, average, buy100M, buy1B, buy10B,
+               sell100M, sell1B, sell10B, notes
+        FROM price
+        WHERE notes != 'manual' AND datetime <= %s
+        ORDER BY datetime DESC
+        LIMIT %s
+    """
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (before, limit))
+            rows = cur.fetchall()
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("get_recent_training_prices failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to fetch recent training prices right now.") from error
+
+    return [_row_to_record(row) for row in reversed(rows)]
+
+
+def upsert_forecast_cache(model: str, model_params, points, history_count: int) -> None:
+    sql = """
+        INSERT INTO forecast_cache (id, model, model_params, points, history_count)
         VALUES (1, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             updated_at = now(),
             model = EXCLUDED.model,
             model_params = EXCLUDED.model_params,
             points = EXCLUDED.points,
-            history = EXCLUDED.history
+            history_count = EXCLUDED.history_count
     """
 
     try:
@@ -187,12 +213,7 @@ def upsert_forecast_cache(model: str, model_params, points, history) -> None:
         with conn.cursor() as cur:
             cur.execute(
                 sql,
-                (
-                    model,
-                    Json(model_params) if model_params is not None else None,
-                    Json(points),
-                    Json(history),
-                ),
+                (model, Json(model_params) if model_params is not None else None, Json(points), history_count),
             )
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
@@ -201,7 +222,7 @@ def upsert_forecast_cache(model: str, model_params, points, history) -> None:
 
 
 def get_forecast_cache() -> Forecast | None:
-    sql = "SELECT model, model_params, points, history, updated_at FROM forecast_cache WHERE id = 1"
+    sql = "SELECT model, model_params, points, history_count, updated_at FROM forecast_cache WHERE id = 1"
 
     try:
         conn = _get_conn()
@@ -215,11 +236,11 @@ def get_forecast_cache() -> Forecast | None:
     if not row:
         return None
 
-    return Forecast(model=row[0], model_params=row[1], points=row[2], history=row[3], updated_at=str(row[4]))
+    return Forecast(model=row[0], model_params=row[1], points=row[2], history_count=row[3], updated_at=str(row[4]))
 
 
-def insert_forecast_snapshot(history, points, model: str, model_params) -> int:
-    sql = """INSERT INTO forecast_snapshot(model, model_params, history, points)
+def insert_forecast_snapshot(history_count: int, points, model: str, model_params) -> int:
+    sql = """INSERT INTO forecast_snapshot(model, model_params, points, history_count)
              VALUES(%s, %s, %s, %s) RETURNING id"""
 
     try:
@@ -227,12 +248,7 @@ def insert_forecast_snapshot(history, points, model: str, model_params) -> int:
         with conn.cursor() as cur:
             cur.execute(
                 sql,
-                (
-                    model,
-                    Json(model_params) if model_params is not None else None,
-                    Json(history),
-                    Json(points),
-                ),
+                (model, Json(model_params) if model_params is not None else None, Json(points), history_count),
             )
             rows = cur.fetchone()
             conn.commit()
@@ -252,14 +268,14 @@ def _row_to_forecast_snapshot_record(row) -> ForecastSnapshotRecord:
         created_at=str(row[1]),
         model=row[2],
         model_params=row[3],
-        history=row[4],
-        points=row[5],
+        points=row[4],
+        history_count=row[5],
     )
 
 
 def get_forecast_snapshots(limit: int = 50) -> list[ForecastSnapshotRecord]:
     sql = """
-        SELECT id, created_at, model, model_params, history, points
+        SELECT id, created_at, model, model_params, points, history_count
         FROM forecast_snapshot
         ORDER BY created_at DESC
         LIMIT %s

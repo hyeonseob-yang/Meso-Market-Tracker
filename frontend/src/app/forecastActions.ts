@@ -10,6 +10,7 @@ export type Forecast = {
   modelParams: Record<string, unknown> | null;
   points: ForecastPoint[];
   history: PriceRow[];
+  historyCount: number;
 };
 export type ForecastSnapshot = {
   id: number;
@@ -21,7 +22,7 @@ export type ForecastSnapshot = {
 };
 
 const FORECAST_QUERY = `
-  query { forecast { model modelParams points history } }
+  query { forecast { model modelParams points history historyCount } }
 `;
 
 const FORECAST_SNAPSHOTS_QUERY = `
@@ -33,8 +34,8 @@ const FORECAST_SNAPSHOTS_QUERY = `
 `;
 
 const RECORD_FORECAST_SNAPSHOT_MUTATION = `
-  mutation RecordForecastSnapshot($history: JSON!, $points: JSON!, $model: String!, $modelParams: JSON) {
-    recordForecastSnapshot(history: $history, points: $points, model: $model, modelParams: $modelParams) {
+  mutation RecordForecastSnapshot($historyCount: Int!, $points: JSON!, $model: String!, $modelParams: JSON) {
+    recordForecastSnapshot(historyCount: $historyCount, points: $points, model: $model, modelParams: $modelParams) {
       id createdAt model modelParams history points
     }
   }
@@ -93,7 +94,7 @@ export async function listForecastSnapshots(limit?: number): Promise<ForecastSna
 }
 
 export async function saveForecastSnapshot(
-  history: PriceRow[],
+  historyCount: number,
   points: ForecastPoint[],
   model: string,
   modelParams: Record<string, unknown> | null,
@@ -106,7 +107,7 @@ export async function saveForecastSnapshot(
     },
     body: JSON.stringify({
       query: RECORD_FORECAST_SNAPSHOT_MUTATION,
-      variables: { history, points, model, modelParams },
+      variables: { historyCount, points, model, modelParams },
     }),
     cache: "no-store",
   });

@@ -35,8 +35,22 @@ class Forecast:
     model: str
     model_params: JSON | None
     points: JSON  # list[{datetime, predicted, lower, upper}]
-    history: JSON  # list[{datetime, average}] - the actual training data used, notes='manual' already excluded
+    history_count: int  # how many training records were used (notes='manual' already excluded)
     updated_at: str | None = None  # only set when read back from the cache (get_forecast_cache)
+
+    @strawberry.field
+    def history(self) -> JSON:
+        """Resolved on read, not stored - the last history_count non-manual
+        price records before updated_at. Reconstructing this from the price
+        table (rather than storing a frozen copy) trades a small chance of
+        drift from a later backfill for roughly half the storage per row -
+        acceptable since this is for rough display, not exact replication."""
+        if self.updated_at is None:
+            return []
+        from database import get_recent_training_prices
+
+        records = get_recent_training_prices(before=self.updated_at, limit=self.history_count)
+        return [{"datetime": r.datetime, "average": r.average} for r in records]
 
 
 @strawberry.type
@@ -45,5 +59,12 @@ class ForecastSnapshotRecord:
     created_at: str
     model: str
     model_params: JSON | None
-    history: JSON
     points: JSON
+    history_count: int
+
+    @strawberry.field
+    def history(self) -> JSON:
+        from database import get_recent_training_prices
+
+        records = get_recent_training_prices(before=self.created_at, limit=self.history_count)
+        return [{"datetime": r.datetime, "average": r.average} for r in records]

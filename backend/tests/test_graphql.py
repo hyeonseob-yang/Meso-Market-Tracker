@@ -279,8 +279,8 @@ query { forecastSnapshots { id model points } }
 """
 
 RECORD_FORECAST_SNAPSHOT_MUTATION = """
-mutation Save($history: JSON!, $points: JSON!, $model: String!) {
-  recordForecastSnapshot(history: $history, points: $points, model: $model) {
+mutation Save($historyCount: Int!, $points: JSON!, $model: String!) {
+  recordForecastSnapshot(historyCount: $historyCount, points: $points, model: $model) {
     id createdAt model points
   }
 }
@@ -303,7 +303,7 @@ SAMPLE_SNAPSHOT_RECORD = SimpleNamespace(
     created_at="2026-10-13T00:00:00+00:00",
     model="AutoETS",
     model_params={"sp": 24},
-    history=[{"datetime": "2026-10-01T00:00:00", "average": 1000}],
+    history_count=240,
     points=SAMPLE_FORECAST.points,
 )
 
@@ -323,6 +323,34 @@ def test_forecast_query_returns_null_before_first_precompute(mock_get, client):
     assert response.status_code == 200
     body = json.loads(response.data)
     assert body["data"]["forecast"] is None
+
+
+@patch("database.get_recent_training_prices")
+@patch("schema.get_forecast_cache")
+def test_forecast_query_resolves_history_from_count_and_updated_at(mock_get_cache, mock_recent, client):
+    from models import Forecast
+
+    mock_get_cache.return_value = Forecast(
+        model="AutoETS",
+        model_params=None,
+        points=[],
+        history_count=2,
+        updated_at="2026-10-13T08:00:00+00:00",
+    )
+    mock_recent.return_value = [
+        SimpleNamespace(datetime="2026-10-13T06:00:00", average=100),
+        SimpleNamespace(datetime="2026-10-13T07:00:00", average=101),
+    ]
+
+    response = gql(client, "query { forecast { history } }")
+    body = json.loads(response.data)
+
+    assert body.get("errors") is None
+    assert body["data"]["forecast"]["history"] == [
+        {"datetime": "2026-10-13T06:00:00", "average": 100},
+        {"datetime": "2026-10-13T07:00:00", "average": 101},
+    ]
+    mock_recent.assert_called_once_with(before="2026-10-13T08:00:00+00:00", limit=2)
 
 
 @patch("schema.get_forecast_snapshots", return_value=[SAMPLE_SNAPSHOT_RECORD])
@@ -352,7 +380,7 @@ def _gql_snapshot_write(client, query, variables, secret=TEST_SNAPSHOT_SECRET):
 
 @patch("schema.insert_forecast_snapshot", return_value=1)
 def test_record_forecast_snapshot_returns_record(mock_insert, client):
-    vars = {"history": [{"datetime": "2026-10-01T00:00:00", "average": 1000}], "points": [], "model": "AutoETS"}
+    vars = {"historyCount": 240, "points": [], "model": "AutoETS"}
     response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
     body = json.loads(response.data)
     assert body["data"]["recordForecastSnapshot"]["id"] == 1
@@ -361,7 +389,7 @@ def test_record_forecast_snapshot_returns_record(mock_insert, client):
 
 @patch("schema.insert_forecast_snapshot", return_value=1)
 def test_record_forecast_snapshot_rejects_missing_secret(mock_insert, client):
-    vars = {"history": [], "points": [], "model": "AutoETS"}
+    vars = {"historyCount": 0, "points": [], "model": "AutoETS"}
     response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars, secret="")
     body = json.loads(response.data)
     assert body["data"] is None
@@ -371,7 +399,7 @@ def test_record_forecast_snapshot_rejects_missing_secret(mock_insert, client):
 
 @patch("schema.insert_forecast_snapshot", return_value=1)
 def test_record_forecast_snapshot_rejects_wrong_secret(mock_insert, client):
-    vars = {"history": [], "points": [], "model": "AutoETS"}
+    vars = {"historyCount": 0, "points": [], "model": "AutoETS"}
     response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars, secret="nope")
     body = json.loads(response.data)
     assert body["data"] is None
@@ -382,7 +410,7 @@ def test_record_forecast_snapshot_rejects_wrong_secret(mock_insert, client):
 @patch("schema.insert_forecast_snapshot", return_value=1)
 def test_record_forecast_snapshot_fails_closed_when_unconfigured(mock_insert, client, monkeypatch):
     monkeypatch.delenv("FORECAST_SNAPSHOT_SECRET", raising=False)
-    vars = {"history": [], "points": [], "model": "AutoETS"}
+    vars = {"historyCount": 0, "points": [], "model": "AutoETS"}
     response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
     body = json.loads(response.data)
     assert body["data"] is None
@@ -392,7 +420,7 @@ def test_record_forecast_snapshot_fails_closed_when_unconfigured(mock_insert, cl
 
 @patch("schema.insert_forecast_snapshot", side_effect=RuntimeError("Unable to save forecast snapshot right now."))
 def test_record_forecast_snapshot_surfaces_database_failure(mock_insert, client):
-    vars = {"history": [], "points": [], "model": "AutoETS"}
+    vars = {"historyCount": 0, "points": [], "model": "AutoETS"}
     response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
     body = json.loads(response.data)
     assert body["data"] is None

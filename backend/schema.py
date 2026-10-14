@@ -81,21 +81,21 @@ class Mutation:
     def record_forecast_snapshot(
         self,
         info: Info,
-        history: JSON,
+        history_count: int,
         points: JSON,
         model: str,
         model_params: JSON | None = None,
     ) -> ForecastSnapshotRecord:
         _check_forecast_snapshot_write_auth(info)
         created_at = datetime.now(timezone.utc).isoformat()
-        snapshot_id = insert_forecast_snapshot(history, points, model, model_params)
+        snapshot_id = insert_forecast_snapshot(history_count, points, model, model_params)
         return ForecastSnapshotRecord(
             id=snapshot_id,
             created_at=created_at,
             model=model,
             model_params=model_params,
-            history=history,
             points=points,
+            history_count=history_count,
         )
 
     @strawberry.mutation

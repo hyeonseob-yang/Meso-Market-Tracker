@@ -106,7 +106,7 @@ describe("saveForecastSnapshot", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("FORECAST_SNAPSHOT_SECRET", "test-secret");
 
-    await saveForecastSnapshot([], [], "AutoETS", null);
+    await saveForecastSnapshot(0, [], "AutoETS", null);
 
     expect(fetchMock.mock.calls[0][1].headers["x-forecast-snapshot-secret"]).toBe("test-secret");
   });
@@ -121,7 +121,7 @@ describe("saveForecastSnapshot", () => {
       }),
     );
 
-    await expect(saveForecastSnapshot([], [], "AutoETS", null)).resolves.toBeNull();
+    await expect(saveForecastSnapshot(0, [], "AutoETS", null)).resolves.toBeNull();
   });
 });
 

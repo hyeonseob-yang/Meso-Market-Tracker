@@ -11,7 +11,7 @@ SAMPLE_FORECAST = SimpleNamespace(
     model="AutoETS",
     model_params={"sp": 24},
     points=[{"datetime": "x"}],
-    history=[{"datetime": "y", "average": 1000}],
+    history_count=240,
 )
 
 
@@ -54,9 +54,7 @@ def test_precompute_action_calls_compute_and_upsert(mock_compute, mock_upsert, c
     response = post(client, {"secret": TEST_SECRET, "action": "precompute"})
     assert response.status_code == 200
     mock_compute.assert_called_once()
-    mock_upsert.assert_called_once_with(
-        "AutoETS", {"sp": 24}, [{"datetime": "x"}], [{"datetime": "y", "average": 1000}]
-    )
+    mock_upsert.assert_called_once_with("AutoETS", {"sp": 24}, [{"datetime": "x"}], 240)
 
 
 @patch("app.insert_forecast_snapshot")
@@ -65,7 +63,7 @@ def test_snapshot_daily_action_archives_the_cache(mock_cache, mock_insert, clien
     response = post(client, {"secret": TEST_SECRET, "action": "snapshot_daily"})
     assert response.status_code == 200
     mock_insert.assert_called_once_with(
-        SAMPLE_FORECAST.history, SAMPLE_FORECAST.points, SAMPLE_FORECAST.model, SAMPLE_FORECAST.model_params
+        SAMPLE_FORECAST.history_count, SAMPLE_FORECAST.points, SAMPLE_FORECAST.model, SAMPLE_FORECAST.model_params
     )
 
 
