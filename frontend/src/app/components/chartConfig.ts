@@ -22,10 +22,16 @@ export const chartOptions = {
       time: {
         tooltipFormat: "MMM d, yyyy HH:mm",
         displayFormats: {
-          day: "MMM d",
+          hour: "h a",
+          day: "EEE",
           week: "MMM d",
           month: "MMM yyyy",
         },
+      },
+      ticks: {
+        autoSkip: true,
+        maxTicksLimit: 8,
+        maxRotation: 0,
       },
       title: {
         display: true,
