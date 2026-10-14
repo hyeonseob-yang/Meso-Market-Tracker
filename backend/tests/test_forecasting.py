@@ -80,9 +80,7 @@ def test_compute_forecast_points_are_structurally_valid(mock_get, mock_autoets):
     timestamps = [p["datetime"] for p in forecast.points]
     assert timestamps == sorted(timestamps)
     assert len(set(timestamps)) == len(timestamps)
-    # Explicit UTC offset required - a naive string gets silently
-    # misparsed as local time by any downstream consumer (a browser's
-    # Date, this test), shifting every comparison by the viewer's offset.
+    # Naive strings parse as local time downstream, not UTC.
     assert all(datetime.fromisoformat(t).tzinfo is not None for t in timestamps)
     for p in forecast.points:
         assert p["lower"] <= p["predicted"] + 1e-6

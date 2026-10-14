@@ -5,19 +5,15 @@ import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
 
-// No `history` field - the model's prediction (`points`) doesn't depend on
-// it, and nothing here displays it; fetching it would pay the same
-// reconstruct-on-read cost as forecastSnapshots.history for no consumer.
+// No `history` field - unused here, and reconstructing it on read is expensive.
 export type Forecast = {
   model: string;
   modelParams: Record<string, unknown> | null;
   points: ForecastPoint[];
   historyCount: number;
 };
-// No `history` - the backend reconstructs it on read and it only grows
-// larger over time (mirrors however much training data existed at save
-// time, up to MAX_TRAINING_DAYS). predictionsList.tsx derives each
-// snapshot's history client-side from a single shared price fetch instead.
+// No `history` - reconstructing it on read is expensive and grows over time.
+// predictionsList.tsx derives it client-side from a shared price fetch instead.
 export type ForecastSnapshotSummary = {
   id: number;
   createdAt: string;

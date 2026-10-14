@@ -4,8 +4,7 @@ export type PriceRow = { datetime: string; average: number };
 
 export type ForecastPoint = { datetime: string; predicted: number; lower: number; upper: number };
 
-// A span this short or shorter always gets bare weekday names on the x-axis,
-// regardless of which unit Chart.js's own auto-detection would otherwise pick.
+// Spans this short use bare weekday names, overriding Chart.js's unit auto-detection.
 const WEEKDAY_LABEL_MAX_SPAN_DAYS = 9;
 
 export function buildChartOptions(spanDays: number) {
@@ -16,8 +15,7 @@ export function buildChartOptions(spanDays: number) {
       legend: {
         position: "top" as const,
         labels: {
-          // The upper/lower bound datasets exist only to shade the
-          // confidence band - don't give them their own legend entries.
+          // Upper/lower bound datasets only shade the confidence band - no legend entry.
           filter: (item: { text: string }) => item.text !== "Forecast range",
         },
       },

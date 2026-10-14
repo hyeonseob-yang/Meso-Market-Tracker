@@ -86,10 +86,7 @@ def compute_forecast() -> Forecast:
     predicted_values = point_forecast.to_numpy()
     points = [
         {
-            # Explicit UTC, not just a naive "looks like UTC" string - without
-            # it, any parser without prior knowledge (a browser's Date, this
-            # file's own tests) defaults to local time, silently shifting
-            # every comparison by the viewer's UTC offset.
+            # Explicit UTC offset - a naive string parses as local time downstream.
             "datetime": pd.Timestamp(ts, tz="UTC").isoformat(),
             "predicted": float(p),
             "lower": float(lo),

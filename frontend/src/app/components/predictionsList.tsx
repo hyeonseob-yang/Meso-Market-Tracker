@@ -11,9 +11,7 @@ import SnapshotChart from "./snapshotChart";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MS_PER_HOUR = 60 * 60 * 1000;
 
-// `createdAt` stands in for the exact last-history timestamp (the two are
-// within an hour of each other) - avoids fetching the full history array
-// just to label a collapsed row.
+// createdAt approximates the last history timestamp, within an hour.
 function horizonLabel(snapshot: ForecastSnapshotSummary): string {
   const end = snapshot.points[snapshot.points.length - 1];
   if (!end) return "";
@@ -21,29 +19,21 @@ function horizonLabel(snapshot: ForecastSnapshotSummary): string {
   return `${days < 1 ? days.toFixed(1) : Math.round(days)}-day horizon`;
 }
 
-// Real collection isn't perfectly hourly (occasional gaps), so `historyCount`
-// rows can span more real time than `historyCount` hours - pad generously
-// when deciding how far back to fetch, rather than risk under-fetching and
-// silently truncating a snapshot's history. The actual per-snapshot slice
-// below matches the backend's LIMIT exactly regardless of this padding.
+// historyCount rows can span more than historyCount hours (collection gaps).
 const HISTORY_FETCH_SAFETY_FACTOR = 2;
 
 function historyFetchStart(snapshot: ForecastSnapshotSummary): number {
   return new Date(snapshot.createdAt).getTime() - snapshot.historyCount * MS_PER_HOUR * HISTORY_FETCH_SAFETY_FACTOR;
 }
 
-// Every snapshot's history+forecast range is derivable from fields already
-// in the summary (createdAt, historyCount, points) - one fetch covering the
-// earliest start through now covers every snapshot, with no per-snapshot
-// round trip needed once a chart is actually opened.
+// One fetch spanning the earliest snapshot's start through now covers all of them.
 function eagerPriceFetchRange(snapshots: ForecastSnapshotSummary[]): { since: string; until: string } | null {
   if (snapshots.length === 0) return null;
   const since = new Date(Math.min(...snapshots.map(historyFetchStart))).toISOString();
   return { since, until: new Date().toISOString() };
 }
 
-// Mirrors get_recent_training_prices(before=createdAt, limit=historyCount):
-// the historyCount rows immediately preceding the forecast's start.
+// Mirrors get_recent_training_prices(before=createdAt, limit=historyCount).
 function historyForSnapshot(snapshot: ForecastSnapshotSummary, allPrices: PriceRow[] | null): PriceRow[] {
   if (allPrices === null) return [];
   const cutoff = new Date(snapshot.points[0]?.datetime ?? snapshot.createdAt).getTime();
@@ -69,8 +59,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [allPrices, setAllPrices] = useState<PriceRow[] | null>(null);
-  // Guards against re-fetching on every expand - the first expand fetches
-  // for every snapshot at once (see eagerPriceFetchRange), not just its own.
+  // Guards against re-fetching on every expand.
   const pricesFetchStarted = useRef(false);
 
   function ensurePricesFetched() {
