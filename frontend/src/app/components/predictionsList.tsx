@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { format } from "date-fns";
 
 import { fetchPrices } from "../actions";
@@ -69,21 +69,21 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [allPrices, setAllPrices] = useState<PriceRow[] | null>(null);
+  // Guards against re-fetching on every expand - the first expand fetches
+  // for every snapshot at once (see eagerPriceFetchRange), not just its own.
+  const pricesFetchStarted = useRef(false);
 
-  useEffect(() => {
+  function ensurePricesFetched() {
+    if (pricesFetchStarted.current) return;
+    pricesFetchStarted.current = true;
+
     const range = eagerPriceFetchRange(snapshots);
     if (!range) {
       setAllPrices([]);
       return;
     }
-    let cancelled = false;
-    fetchPrices(range.since, range.until).then((result) => {
-      if (!cancelled) setAllPrices(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [snapshots]);
+    fetchPrices(range.since, range.until).then(setAllPrices);
+  }
 
   async function handleDelete(id: number) {
     setDeletingId(id);
@@ -93,6 +93,12 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
       setSnapshots(await listForecastSnapshots());
       if (expandedId === id) setExpandedId(null);
     }
+  }
+
+  function handleToggleExpand(snapshot: ForecastSnapshotSummary) {
+    const wasExpanded = expandedId === snapshot.id;
+    setExpandedId(wasExpanded ? null : snapshot.id);
+    if (!wasExpanded) ensurePricesFetched();
   }
 
   if (snapshots.length === 0) {
@@ -135,7 +141,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setExpandedId(isExpanded ? null : snapshot.id)}
+                    onClick={() => handleToggleExpand(snapshot)}
                     className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
                   >
                     {isExpanded ? "Hide" : "View"}
