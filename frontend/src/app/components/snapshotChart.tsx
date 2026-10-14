@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   Chart as ChartJS,
   Colors,
@@ -16,7 +15,6 @@ import {
 import "chartjs-adapter-date-fns";
 import { Line } from "react-chartjs-2";
 
-import { fetchPrices } from "../actions";
 import type { ForecastSnapshot } from "../forecastActions";
 import { buildChartData, buildChartOptions, computeAccuracy, computeSpanDays, type PriceRow } from "./chartConfig";
 
@@ -33,25 +31,13 @@ ChartJS.register(
   Filler,
 );
 
-export default function SnapshotChart({ snapshot }: { snapshot: ForecastSnapshot }) {
-  const [actual, setActual] = useState<PriceRow[] | null>(null);
-
-  useEffect(() => {
-    const first = snapshot.points[0];
-    const last = snapshot.points[snapshot.points.length - 1];
-    if (!first || !last) {
-      setActual([]);
-      return;
-    }
-    let cancelled = false;
-    fetchPrices(first.datetime, last.datetime).then((result) => {
-      if (!cancelled) setActual(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [snapshot.id]);
-
+export default function SnapshotChart({
+  snapshot,
+  actual,
+}: {
+  snapshot: ForecastSnapshot;
+  actual: PriceRow[] | null;
+}) {
   const accuracy = actual ? computeAccuracy(snapshot.points, actual) : null;
 
   return (

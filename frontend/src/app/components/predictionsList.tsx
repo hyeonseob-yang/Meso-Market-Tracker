@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { format } from "date-fns";
 
-import SnapshotChart from "./snapshotChart";
+import { fetchPrices } from "../actions";
 import { deleteForecastSnapshot, listForecastSnapshots, type ForecastSnapshot } from "../forecastActions";
+import type { PriceRow } from "./chartConfig";
+import SnapshotChart from "./snapshotChart";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -20,6 +22,9 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  // Keyed by snapshot id so re-expanding a snapshot reuses the fetch instead
+  // of repeating it every time it's opened.
+  const [actualById, setActualById] = useState<Record<number, PriceRow[]>>({});
 
   async function handleDelete(id: number) {
     setDeletingId(id);
@@ -29,6 +34,17 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
       setSnapshots(await listForecastSnapshots());
       if (expandedId === id) setExpandedId(null);
     }
+  }
+
+  async function handleToggleExpand(snapshot: ForecastSnapshot) {
+    const wasExpanded = expandedId === snapshot.id;
+    setExpandedId(wasExpanded ? null : snapshot.id);
+    if (wasExpanded || snapshot.id in actualById) return;
+
+    const first = snapshot.points[0];
+    const last = snapshot.points[snapshot.points.length - 1];
+    const result = first && last ? await fetchPrices(first.datetime, last.datetime) : [];
+    setActualById((prev) => ({ ...prev, [snapshot.id]: result }));
   }
 
   if (snapshots.length === 0) {
@@ -71,7 +87,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setExpandedId(isExpanded ? null : snapshot.id)}
+                    onClick={() => handleToggleExpand(snapshot)}
                     className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
                   >
                     {isExpanded ? "Hide" : "View"}
@@ -88,7 +104,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
               </div>
               {isExpanded && (
                 <div className="mt-4">
-                  <SnapshotChart snapshot={snapshot} />
+                  <SnapshotChart snapshot={snapshot} actual={actualById[snapshot.id] ?? null} />
                 </div>
               )}
             </div>
