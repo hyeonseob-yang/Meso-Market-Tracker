@@ -8,6 +8,7 @@ from strawberry.types import Info
 from database import (
     delete_forecast_snapshot as db_delete_forecast_snapshot,
     get_forecast_cache,
+    get_forecast_snapshot,
     get_forecast_snapshots,
     get_latest_prices,
     get_prices,
@@ -136,6 +137,13 @@ class Query:
     @strawberry.field
     def forecast_snapshots(self, limit: int = 50) -> list[ForecastSnapshotRecord]:
         return get_forecast_snapshots(limit)
+
+    @strawberry.field
+    def forecast_snapshot(self, id: int) -> ForecastSnapshotRecord | None:
+        """Single-snapshot lookup - lets callers fetch the (potentially
+        large, reconstructed-on-read) history field for one snapshot
+        without paying that cost for every row in forecast_snapshots."""
+        return get_forecast_snapshot(id)
 
 
 # Introspection/GraphiQL make the schema self-documenting, which is

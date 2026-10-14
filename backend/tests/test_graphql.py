@@ -369,6 +369,23 @@ def test_forecast_snapshots_query_returns_empty_list(mock_get, client):
     assert body["data"]["forecastSnapshots"] == []
 
 
+@patch("schema.get_forecast_snapshot", return_value=SAMPLE_SNAPSHOT_RECORD)
+def test_forecast_snapshot_query_returns_record_by_id(mock_get, client):
+    response = gql(client, "query { forecastSnapshot(id: 1) { id model } }")
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["forecastSnapshot"]["id"] == 1
+    mock_get.assert_called_once_with(1)
+
+
+@patch("schema.get_forecast_snapshot", return_value=None)
+def test_forecast_snapshot_query_returns_null_when_not_found(mock_get, client):
+    response = gql(client, "query { forecastSnapshot(id: 999) { id } }")
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"]["forecastSnapshot"] is None
+
+
 def _gql_snapshot_write(client, query, variables, secret=TEST_SNAPSHOT_SECRET):
     return client.post(
         "/price",

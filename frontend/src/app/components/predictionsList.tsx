@@ -4,17 +4,24 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
 import { fetchPrices } from "../actions";
-import { deleteForecastSnapshot, listForecastSnapshots, type ForecastSnapshot } from "../forecastActions";
+import {
+  deleteForecastSnapshot,
+  fetchForecastSnapshotHistory,
+  listForecastSnapshots,
+  type ForecastSnapshotSummary,
+} from "../forecastActions";
 import type { PriceRow } from "./chartConfig";
 import SnapshotChart from "./snapshotChart";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-function horizonLabel(snapshot: ForecastSnapshot): string {
-  const anchor = snapshot.history[snapshot.history.length - 1];
+// `createdAt` stands in for the exact last-history timestamp (the two are
+// within an hour of each other) - avoids fetching the full history array
+// just to label a collapsed row.
+function horizonLabel(snapshot: ForecastSnapshotSummary): string {
   const end = snapshot.points[snapshot.points.length - 1];
-  if (!anchor || !end) return "";
-  const days = (new Date(end.datetime).getTime() - new Date(anchor.datetime).getTime()) / MS_PER_DAY;
+  if (!end) return "";
+  const days = (new Date(end.datetime).getTime() - new Date(snapshot.createdAt).getTime()) / MS_PER_DAY;
   return `${days < 1 ? days.toFixed(1) : Math.round(days)}-day horizon`;
 }
 
@@ -22,12 +29,12 @@ function horizonLabel(snapshot: ForecastSnapshot): string {
 // snapshot's forecast start through now covers all of them. Snapshots come
 // back newest-first (ORDER BY created_at DESC), so the oldest is the last
 // element.
-function actualFetchRange(snapshots: ForecastSnapshot[]): { since: string; until: string } | null {
+function actualFetchRange(snapshots: ForecastSnapshotSummary[]): { since: string; until: string } | null {
   const since = snapshots[snapshots.length - 1]?.points[0]?.datetime;
   return since ? { since, until: new Date().toISOString() } : null;
 }
 
-function actualForSnapshot(snapshot: ForecastSnapshot, allActual: PriceRow[] | null): PriceRow[] | null {
+function actualForSnapshot(snapshot: ForecastSnapshotSummary, allActual: PriceRow[] | null): PriceRow[] | null {
   if (allActual === null) return null;
   const first = snapshot.points[0];
   const last = snapshot.points[snapshot.points.length - 1];
@@ -40,11 +47,13 @@ function actualForSnapshot(snapshot: ForecastSnapshot, allActual: PriceRow[] | n
   });
 }
 
-export default function PredictionsList({ initialSnapshots }: { initialSnapshots: ForecastSnapshot[] }) {
+export default function PredictionsList({ initialSnapshots }: { initialSnapshots: ForecastSnapshotSummary[] }) {
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [allActual, setAllActual] = useState<PriceRow[] | null>(null);
+  // Keyed by snapshot id - fetched only once a snapshot is actually expanded.
+  const [historyById, setHistoryById] = useState<Record<number, PriceRow[]>>({});
 
   useEffect(() => {
     const range = actualFetchRange(snapshots);
@@ -69,6 +78,15 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
       setSnapshots(await listForecastSnapshots());
       if (expandedId === id) setExpandedId(null);
     }
+  }
+
+  async function handleToggleExpand(snapshot: ForecastSnapshotSummary) {
+    const wasExpanded = expandedId === snapshot.id;
+    setExpandedId(wasExpanded ? null : snapshot.id);
+    if (wasExpanded || snapshot.id in historyById) return;
+
+    const history = await fetchForecastSnapshotHistory(snapshot.id);
+    if (history) setHistoryById((prev) => ({ ...prev, [snapshot.id]: history }));
   }
 
   if (snapshots.length === 0) {
@@ -100,7 +118,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
                     {format(new Date(snapshot.createdAt), "MMM d, yyyy HH:mm")}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {horizonLabel(snapshot)} · {snapshot.history.length} history points ·{" "}
+                    {horizonLabel(snapshot)} · {snapshot.historyCount} history points ·{" "}
                     {snapshot.points.length} forecast points
                     {first && last && (
                       <> · predicted {Math.round(first.predicted)} → {Math.round(last.predicted)}</>
@@ -111,7 +129,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setExpandedId(isExpanded ? null : snapshot.id)}
+                    onClick={() => handleToggleExpand(snapshot)}
                     className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
                   >
                     {isExpanded ? "Hide" : "View"}
@@ -128,7 +146,14 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
               </div>
               {isExpanded && (
                 <div className="mt-4">
-                  <SnapshotChart snapshot={snapshot} actual={actualForSnapshot(snapshot, allActual)} />
+                  {historyById[snapshot.id] ? (
+                    <SnapshotChart
+                      snapshot={{ ...snapshot, history: historyById[snapshot.id] }}
+                      actual={actualForSnapshot(snapshot, allActual)}
+                    />
+                  ) : (
+                    <p className="text-xs text-gray-500">Loading…</p>
+                  )}
                 </div>
               )}
             </div>

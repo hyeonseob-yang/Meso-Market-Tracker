@@ -12,14 +12,19 @@ export type Forecast = {
   history: PriceRow[];
   historyCount: number;
 };
-export type ForecastSnapshot = {
+// The list view - no `history`, which the backend reconstructs on read and
+// which only grows larger over time (it mirrors however much training data
+// existed at save time, up to MAX_TRAINING_DAYS). Fetched per snapshot via
+// fetchForecastSnapshotHistory only when its chart is actually shown.
+export type ForecastSnapshotSummary = {
   id: number;
   createdAt: string;
   model: string;
   modelParams: Record<string, unknown> | null;
-  history: PriceRow[];
+  historyCount: number;
   points: ForecastPoint[];
 };
+export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
   query { forecast { model modelParams points history historyCount } }
@@ -28,15 +33,21 @@ const FORECAST_QUERY = `
 const FORECAST_SNAPSHOTS_QUERY = `
   query ForecastSnapshots($limit: Int) {
     forecastSnapshots(limit: $limit) {
-      id createdAt model modelParams history points
+      id createdAt model modelParams historyCount points
     }
+  }
+`;
+
+const FORECAST_SNAPSHOT_HISTORY_QUERY = `
+  query ForecastSnapshotHistory($id: Int!) {
+    forecastSnapshot(id: $id) { history }
   }
 `;
 
 const RECORD_FORECAST_SNAPSHOT_MUTATION = `
   mutation RecordForecastSnapshot($historyCount: Int!, $points: JSON!, $model: String!, $modelParams: JSON) {
     recordForecastSnapshot(historyCount: $historyCount, points: $points, model: $model, modelParams: $modelParams) {
-      id createdAt model modelParams history points
+      id createdAt model modelParams historyCount points
     }
   }
 `;
@@ -70,7 +81,7 @@ export async function fetchForecast(): Promise<Forecast | null> {
   return data.forecast as Forecast | null;
 }
 
-export async function listForecastSnapshots(limit?: number): Promise<ForecastSnapshot[]> {
+export async function listForecastSnapshots(limit?: number): Promise<ForecastSnapshotSummary[]> {
   const response = await fetch(`${process.env.BACKEND_URL}/price`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -90,7 +101,30 @@ export async function listForecastSnapshots(limit?: number): Promise<ForecastSna
     return [];
   }
 
-  return data.forecastSnapshots as ForecastSnapshot[];
+  return data.forecastSnapshots as ForecastSnapshotSummary[];
+}
+
+export async function fetchForecastSnapshotHistory(id: number): Promise<PriceRow[] | null> {
+  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: FORECAST_SNAPSHOT_HISTORY_QUERY, variables: { id } }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    await logError("backend error", response.status, await response.text());
+    return null;
+  }
+
+  const { data, errors } = await response.json();
+
+  if (errors || !data?.forecastSnapshot) {
+    await logError("GraphQL errors:", errors);
+    return null;
+  }
+
+  return data.forecastSnapshot.history as PriceRow[];
 }
 
 export async function saveForecastSnapshot(
@@ -98,7 +132,7 @@ export async function saveForecastSnapshot(
   points: ForecastPoint[],
   model: string,
   modelParams: Record<string, unknown> | null,
-): Promise<ForecastSnapshot | null> {
+): Promise<ForecastSnapshotSummary | null> {
   const response = await fetch(`${process.env.BACKEND_URL}/price`, {
     method: "POST",
     headers: {
@@ -124,7 +158,7 @@ export async function saveForecastSnapshot(
     return null;
   }
 
-  return data.recordForecastSnapshot as ForecastSnapshot;
+  return data.recordForecastSnapshot as ForecastSnapshotSummary;
 }
 
 export async function deleteForecastSnapshot(id: number): Promise<boolean> {
