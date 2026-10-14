@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
 import { fetchPrices } from "../actions";
@@ -18,13 +18,51 @@ function horizonLabel(snapshot: ForecastSnapshot): string {
   return `${days < 1 ? days.toFixed(1) : Math.round(days)}-day horizon`;
 }
 
+// Snapshots' forecast windows overlap heavily, so one fetch spanning all of
+// them beats fetching per snapshot.
+function unionForecastRange(snapshots: ForecastSnapshot[]): { since: string; until: string } | null {
+  const ends = snapshots.flatMap((s) => [s.points[0]?.datetime, s.points[s.points.length - 1]?.datetime]).filter(
+    (d): d is string => Boolean(d),
+  );
+  if (ends.length === 0) return null;
+  const since = ends.reduce((a, b) => (new Date(a) < new Date(b) ? a : b));
+  const until = ends.reduce((a, b) => (new Date(a) > new Date(b) ? a : b));
+  return { since, until };
+}
+
+function actualForSnapshot(snapshot: ForecastSnapshot, allActual: PriceRow[] | null): PriceRow[] | null {
+  if (allActual === null) return null;
+  const first = snapshot.points[0];
+  const last = snapshot.points[snapshot.points.length - 1];
+  if (!first || !last) return [];
+  const start = new Date(first.datetime).getTime();
+  const end = new Date(last.datetime).getTime();
+  return allActual.filter((p) => {
+    const t = new Date(p.datetime).getTime();
+    return t >= start && t <= end;
+  });
+}
+
 export default function PredictionsList({ initialSnapshots }: { initialSnapshots: ForecastSnapshot[] }) {
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  // Keyed by snapshot id so re-expanding a snapshot reuses the fetch instead
-  // of repeating it every time it's opened.
-  const [actualById, setActualById] = useState<Record<number, PriceRow[]>>({});
+  const [allActual, setAllActual] = useState<PriceRow[] | null>(null);
+
+  useEffect(() => {
+    const range = unionForecastRange(snapshots);
+    if (!range) {
+      setAllActual([]);
+      return;
+    }
+    let cancelled = false;
+    fetchPrices(range.since, range.until).then((result) => {
+      if (!cancelled) setAllActual(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [snapshots]);
 
   async function handleDelete(id: number) {
     setDeletingId(id);
@@ -34,17 +72,6 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
       setSnapshots(await listForecastSnapshots());
       if (expandedId === id) setExpandedId(null);
     }
-  }
-
-  async function handleToggleExpand(snapshot: ForecastSnapshot) {
-    const wasExpanded = expandedId === snapshot.id;
-    setExpandedId(wasExpanded ? null : snapshot.id);
-    if (wasExpanded || snapshot.id in actualById) return;
-
-    const first = snapshot.points[0];
-    const last = snapshot.points[snapshot.points.length - 1];
-    const result = first && last ? await fetchPrices(first.datetime, last.datetime) : [];
-    setActualById((prev) => ({ ...prev, [snapshot.id]: result }));
   }
 
   if (snapshots.length === 0) {
@@ -87,7 +114,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => handleToggleExpand(snapshot)}
+                    onClick={() => setExpandedId(isExpanded ? null : snapshot.id)}
                     className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
                   >
                     {isExpanded ? "Hide" : "View"}
@@ -104,7 +131,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
               </div>
               {isExpanded && (
                 <div className="mt-4">
-                  <SnapshotChart snapshot={snapshot} actual={actualById[snapshot.id] ?? null} />
+                  <SnapshotChart snapshot={snapshot} actual={actualForSnapshot(snapshot, allActual)} />
                 </div>
               )}
             </div>
