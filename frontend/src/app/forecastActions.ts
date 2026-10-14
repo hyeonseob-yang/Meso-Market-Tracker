@@ -5,11 +5,13 @@ import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
 
+// No `history` field - the model's prediction (`points`) doesn't depend on
+// it, and nothing here displays it; fetching it would pay the same
+// reconstruct-on-read cost as forecastSnapshots.history for no consumer.
 export type Forecast = {
   model: string;
   modelParams: Record<string, unknown> | null;
   points: ForecastPoint[];
-  history: PriceRow[];
   historyCount: number;
 };
 // The list view - no `history`, which the backend reconstructs on read and
@@ -27,7 +29,7 @@ export type ForecastSnapshotSummary = {
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
-  query { forecast { model modelParams points history historyCount } }
+  query { forecast { model modelParams points historyCount } }
 `;
 
 const FORECAST_SNAPSHOTS_QUERY = `
