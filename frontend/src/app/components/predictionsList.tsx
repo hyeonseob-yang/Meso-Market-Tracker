@@ -18,16 +18,13 @@ function horizonLabel(snapshot: ForecastSnapshot): string {
   return `${days < 1 ? days.toFixed(1) : Math.round(days)}-day horizon`;
 }
 
-// Snapshots' forecast windows overlap heavily, so one fetch spanning all of
-// them beats fetching per snapshot.
-function unionForecastRange(snapshots: ForecastSnapshot[]): { since: string; until: string } | null {
-  const ends = snapshots.flatMap((s) => [s.points[0]?.datetime, s.points[s.points.length - 1]?.datetime]).filter(
-    (d): d is string => Boolean(d),
-  );
-  if (ends.length === 0) return null;
-  const since = ends.reduce((a, b) => (new Date(a) < new Date(b) ? a : b));
-  const until = ends.reduce((a, b) => (new Date(a) > new Date(b) ? a : b));
-  return { since, until };
+// Snapshots' forecast windows overlap heavily, so one fetch from the oldest
+// snapshot's forecast start through now covers all of them. Snapshots come
+// back newest-first (ORDER BY created_at DESC), so the oldest is the last
+// element.
+function actualFetchRange(snapshots: ForecastSnapshot[]): { since: string; until: string } | null {
+  const since = snapshots[snapshots.length - 1]?.points[0]?.datetime;
+  return since ? { since, until: new Date().toISOString() } : null;
 }
 
 function actualForSnapshot(snapshot: ForecastSnapshot, allActual: PriceRow[] | null): PriceRow[] | null {
@@ -50,7 +47,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
   const [allActual, setAllActual] = useState<PriceRow[] | null>(null);
 
   useEffect(() => {
-    const range = unionForecastRange(snapshots);
+    const range = actualFetchRange(snapshots);
     if (!range) {
       setAllActual([]);
       return;
