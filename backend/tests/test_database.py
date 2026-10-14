@@ -6,7 +6,6 @@ from psycopg2.extras import Json
 from database import (
     delete_forecast_snapshot,
     get_forecast_cache,
-    get_forecast_snapshot,
     get_forecast_snapshots,
     get_forecast_training_prices,
     get_latest_prices,
@@ -317,24 +316,6 @@ def test_get_forecast_snapshots_raises_on_connection_failure():
             get_forecast_snapshots()
 
 
-def test_get_forecast_snapshot_returns_none_when_not_found():
-    conn = MagicMock()
-    cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchone.return_value = None
-
-    with patch("database._get_conn", return_value=conn):
-        result = get_forecast_snapshot(999)
-
-    sql, params = cur.execute.call_args[0]
-    assert "WHERE id = %s" in sql
-    assert params == (999,)
-    assert result is None
-
-
-def test_get_forecast_snapshot_raises_on_connection_failure():
-    with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
-        with pytest.raises(RuntimeError, match="Unable to fetch forecast snapshot"):
-            get_forecast_snapshot(1)
 
 
 def test_delete_forecast_snapshot_returns_true_when_row_deleted():

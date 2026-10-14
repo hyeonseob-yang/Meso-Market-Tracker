@@ -14,10 +14,10 @@ export type Forecast = {
   points: ForecastPoint[];
   historyCount: number;
 };
-// The list view - no `history`, which the backend reconstructs on read and
-// which only grows larger over time (it mirrors however much training data
-// existed at save time, up to MAX_TRAINING_DAYS). Fetched per snapshot via
-// fetchForecastSnapshotHistory only when its chart is actually shown.
+// No `history` - the backend reconstructs it on read and it only grows
+// larger over time (mirrors however much training data existed at save
+// time, up to MAX_TRAINING_DAYS). predictionsList.tsx derives each
+// snapshot's history client-side from a single shared price fetch instead.
 export type ForecastSnapshotSummary = {
   id: number;
   createdAt: string;
@@ -37,12 +37,6 @@ const FORECAST_SNAPSHOTS_QUERY = `
     forecastSnapshots(limit: $limit) {
       id createdAt model modelParams historyCount points
     }
-  }
-`;
-
-const FORECAST_SNAPSHOT_HISTORY_QUERY = `
-  query ForecastSnapshotHistory($id: Int!) {
-    forecastSnapshot(id: $id) { history }
   }
 `;
 
@@ -104,29 +98,6 @@ export async function listForecastSnapshots(limit?: number): Promise<ForecastSna
   }
 
   return data.forecastSnapshots as ForecastSnapshotSummary[];
-}
-
-export async function fetchForecastSnapshotHistory(id: number): Promise<PriceRow[] | null> {
-  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: FORECAST_SNAPSHOT_HISTORY_QUERY, variables: { id } }),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    await logError("backend error", response.status, await response.text());
-    return null;
-  }
-
-  const { data, errors } = await response.json();
-
-  if (errors || !data?.forecastSnapshot) {
-    await logError("GraphQL errors:", errors);
-    return null;
-  }
-
-  return data.forecastSnapshot.history as PriceRow[];
 }
 
 export async function saveForecastSnapshot(

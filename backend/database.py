@@ -269,20 +269,6 @@ def _row_to_forecast_snapshot_record(row) -> ForecastSnapshotRecord:
     )
 
 
-def get_forecast_snapshot(id: int) -> ForecastSnapshotRecord | None:
-    sql = "SELECT id, created_at, model, model_params, points, history_count FROM forecast_snapshot WHERE id = %s"
-
-    try:
-        conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(sql, (id,))
-            row = cur.fetchone()
-            return _row_to_forecast_snapshot_record(row) if row else None
-    except (Exception, psycopg2.DatabaseError) as error:
-        logger.error("get_forecast_snapshot failed: %s", _sanitize(str(error)))
-        raise RuntimeError("Unable to fetch forecast snapshot right now.") from error
-
-
 def get_forecast_snapshots(limit: int = 50) -> list[ForecastSnapshotRecord]:
     sql = """
         SELECT id, created_at, model, model_params, points, history_count

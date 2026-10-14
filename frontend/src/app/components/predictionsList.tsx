@@ -4,16 +4,12 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
 import { fetchPrices } from "../actions";
-import {
-  deleteForecastSnapshot,
-  fetchForecastSnapshotHistory,
-  listForecastSnapshots,
-  type ForecastSnapshotSummary,
-} from "../forecastActions";
+import { deleteForecastSnapshot, listForecastSnapshots, type ForecastSnapshotSummary } from "../forecastActions";
 import type { PriceRow } from "./chartConfig";
 import SnapshotChart from "./snapshotChart";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 // `createdAt` stands in for the exact last-history timestamp (the two are
 // within an hour of each other) - avoids fetching the full history array
@@ -25,23 +21,44 @@ function horizonLabel(snapshot: ForecastSnapshotSummary): string {
   return `${days < 1 ? days.toFixed(1) : Math.round(days)}-day horizon`;
 }
 
-// Snapshots' forecast windows overlap heavily, so one fetch from the oldest
-// snapshot's forecast start through now covers all of them. Snapshots come
-// back newest-first (ORDER BY created_at DESC), so the oldest is the last
-// element.
-function actualFetchRange(snapshots: ForecastSnapshotSummary[]): { since: string; until: string } | null {
-  const since = snapshots[snapshots.length - 1]?.points[0]?.datetime;
-  return since ? { since, until: new Date().toISOString() } : null;
+// Real collection isn't perfectly hourly (occasional gaps), so `historyCount`
+// rows can span more real time than `historyCount` hours - pad generously
+// when deciding how far back to fetch, rather than risk under-fetching and
+// silently truncating a snapshot's history. The actual per-snapshot slice
+// below matches the backend's LIMIT exactly regardless of this padding.
+const HISTORY_FETCH_SAFETY_FACTOR = 2;
+
+function historyFetchStart(snapshot: ForecastSnapshotSummary): number {
+  return new Date(snapshot.createdAt).getTime() - snapshot.historyCount * MS_PER_HOUR * HISTORY_FETCH_SAFETY_FACTOR;
 }
 
-function actualForSnapshot(snapshot: ForecastSnapshotSummary, allActual: PriceRow[] | null): PriceRow[] | null {
-  if (allActual === null) return null;
+// Every snapshot's history+forecast range is derivable from fields already
+// in the summary (createdAt, historyCount, points) - one fetch covering the
+// earliest start through now covers every snapshot, with no per-snapshot
+// round trip needed once a chart is actually opened.
+function eagerPriceFetchRange(snapshots: ForecastSnapshotSummary[]): { since: string; until: string } | null {
+  if (snapshots.length === 0) return null;
+  const since = new Date(Math.min(...snapshots.map(historyFetchStart))).toISOString();
+  return { since, until: new Date().toISOString() };
+}
+
+// Mirrors get_recent_training_prices(before=createdAt, limit=historyCount):
+// the historyCount rows immediately preceding the forecast's start.
+function historyForSnapshot(snapshot: ForecastSnapshotSummary, allPrices: PriceRow[] | null): PriceRow[] {
+  if (allPrices === null) return [];
+  const cutoff = new Date(snapshot.points[0]?.datetime ?? snapshot.createdAt).getTime();
+  const before = allPrices.filter((p) => new Date(p.datetime).getTime() < cutoff);
+  return before.slice(-snapshot.historyCount);
+}
+
+function actualForSnapshot(snapshot: ForecastSnapshotSummary, allPrices: PriceRow[] | null): PriceRow[] | null {
+  if (allPrices === null) return null;
   const first = snapshot.points[0];
   const last = snapshot.points[snapshot.points.length - 1];
   if (!first || !last) return [];
   const start = new Date(first.datetime).getTime();
   const end = new Date(last.datetime).getTime();
-  return allActual.filter((p) => {
+  return allPrices.filter((p) => {
     const t = new Date(p.datetime).getTime();
     return t >= start && t <= end;
   });
@@ -51,19 +68,17 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [allActual, setAllActual] = useState<PriceRow[] | null>(null);
-  // Keyed by snapshot id - fetched only once a snapshot is actually expanded.
-  const [historyById, setHistoryById] = useState<Record<number, PriceRow[]>>({});
+  const [allPrices, setAllPrices] = useState<PriceRow[] | null>(null);
 
   useEffect(() => {
-    const range = actualFetchRange(snapshots);
+    const range = eagerPriceFetchRange(snapshots);
     if (!range) {
-      setAllActual([]);
+      setAllPrices([]);
       return;
     }
     let cancelled = false;
     fetchPrices(range.since, range.until).then((result) => {
-      if (!cancelled) setAllActual(result);
+      if (!cancelled) setAllPrices(result);
     });
     return () => {
       cancelled = true;
@@ -78,15 +93,6 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
       setSnapshots(await listForecastSnapshots());
       if (expandedId === id) setExpandedId(null);
     }
-  }
-
-  async function handleToggleExpand(snapshot: ForecastSnapshotSummary) {
-    const wasExpanded = expandedId === snapshot.id;
-    setExpandedId(wasExpanded ? null : snapshot.id);
-    if (wasExpanded || snapshot.id in historyById) return;
-
-    const history = await fetchForecastSnapshotHistory(snapshot.id);
-    if (history) setHistoryById((prev) => ({ ...prev, [snapshot.id]: history }));
   }
 
   if (snapshots.length === 0) {
@@ -129,7 +135,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => handleToggleExpand(snapshot)}
+                    onClick={() => setExpandedId(isExpanded ? null : snapshot.id)}
                     className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
                   >
                     {isExpanded ? "Hide" : "View"}
@@ -146,14 +152,10 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
               </div>
               {isExpanded && (
                 <div className="mt-4">
-                  {historyById[snapshot.id] ? (
-                    <SnapshotChart
-                      snapshot={{ ...snapshot, history: historyById[snapshot.id] }}
-                      actual={actualForSnapshot(snapshot, allActual)}
-                    />
-                  ) : (
-                    <p className="text-xs text-gray-500">Loading…</p>
-                  )}
+                  <SnapshotChart
+                    snapshot={{ ...snapshot, history: historyForSnapshot(snapshot, allPrices) }}
+                    actual={actualForSnapshot(snapshot, allPrices)}
+                  />
                 </div>
               )}
             </div>
