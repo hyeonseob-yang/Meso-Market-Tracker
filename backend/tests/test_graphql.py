@@ -325,34 +325,6 @@ def test_forecast_query_returns_null_before_first_precompute(mock_get, client):
     assert body["data"]["forecast"] is None
 
 
-@patch("database.get_recent_training_prices")
-@patch("schema.get_forecast_cache")
-def test_forecast_query_resolves_history_from_count_and_updated_at(mock_get_cache, mock_recent, client):
-    from models import Forecast
-
-    mock_get_cache.return_value = Forecast(
-        model="AutoETS",
-        model_params=None,
-        points=[],
-        history_count=2,
-        updated_at="2026-10-13T08:00:00+00:00",
-    )
-    mock_recent.return_value = [
-        SimpleNamespace(datetime="2026-10-13T06:00:00", average=100),
-        SimpleNamespace(datetime="2026-10-13T07:00:00", average=101),
-    ]
-
-    response = gql(client, "query { forecast { history } }")
-    body = json.loads(response.data)
-
-    assert body.get("errors") is None
-    assert body["data"]["forecast"]["history"] == [
-        {"datetime": "2026-10-13T06:00:00", "average": 100},
-        {"datetime": "2026-10-13T07:00:00", "average": 101},
-    ]
-    mock_recent.assert_called_once_with(before="2026-10-13T08:00:00+00:00", limit=2)
-
-
 @patch("schema.get_forecast_snapshots", return_value=[SAMPLE_SNAPSHOT_RECORD])
 def test_forecast_snapshots_query_returns_records(mock_get, client):
     response = gql(client, FORECAST_SNAPSHOTS_QUERY)

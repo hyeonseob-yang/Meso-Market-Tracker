@@ -38,18 +38,6 @@ class Forecast:
     history_count: int  # how many training records were used (notes='manual' already excluded)
     updated_at: str | None = None  # only set when read back from the cache (get_forecast_cache)
 
-    @strawberry.field
-    def history(self) -> JSON:
-        """Computed on read, not stored - the last history_count non-manual
-        records before updated_at. Can drift slightly if a backfill lands
-        afterward; acceptable for display purposes."""
-        if self.updated_at is None:
-            return []
-        from database import get_recent_training_prices
-
-        records = get_recent_training_prices(before=self.updated_at, limit=self.history_count)
-        return [{"datetime": r.datetime, "average": r.average} for r in records]
-
 
 @strawberry.type
 class ForecastSnapshotRecord:
