@@ -7,6 +7,7 @@ A web app for tracking and visualising MapleStory meso market prices over time.
 - **Chart view** — line chart of average meso market prices
 - **Manual entry** — form for recording buy/sell buyout prices at multiple meso denominations (100M, 1B, 10B)
 - **CSV upload** — bulk import historical data from a CSV file
+- **Forecasting** — sktime (AutoETS) price predictions with confidence bands, precomputed on a schedule and tracked against actual outcomes via saved snapshots
 
 ## Architecture
 
