@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import psycopg2
 import pytest
 from psycopg2.extras import Json
 
@@ -62,6 +63,19 @@ def test_insert_price_returns_id_on_success():
 
     with patch("database._get_conn", return_value=conn):
         assert insert_price(VALID_PRICE, "2026-09-30T00:00:00+00:00") == 42
+
+
+@pytest.mark.parametrize("pg_error", [psycopg2.DataError, psycopg2.IntegrityError])
+def test_insert_price_raises_value_error_on_invalid_data(pg_error):
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.execute.side_effect = pg_error("value too long")
+
+    with patch("database._get_conn", return_value=conn):
+        with pytest.raises(ValueError, match="Price data is invalid"):
+            insert_price(VALID_PRICE, "2026-09-30T00:00:00+00:00")
+
+    conn.rollback.assert_called_once()
 
 
 def test_insert_price_upserts_on_duplicate_datetime():

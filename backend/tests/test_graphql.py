@@ -245,6 +245,16 @@ def test_record_price_surfaces_database_failure(mock_insert, client):
     assert any("Unable to record price" in e["message"] for e in body["errors"])
 
 
+@patch("schema.insert_price", side_effect=ValueError("Price data is invalid."))
+def test_record_price_does_not_retry_invalid_data(mock_insert, client):
+    # Bad data stays 200-with-errors - retrying the same payload can't help.
+    response = gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
+    assert response.status_code == 200
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("Price data is invalid" in e["message"] for e in body["errors"])
+
+
 @patch("schema.insert_price", return_value=1)
 def test_record_price_rejects_zero_price(mock_insert, client):
     vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}

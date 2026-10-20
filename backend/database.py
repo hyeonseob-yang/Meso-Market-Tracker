@@ -62,6 +62,12 @@ def insert_price(price: PriceInput, occurred_at: str):
 
             rows = cur.fetchone()
             conn.commit()
+    except (psycopg2.DataError, psycopg2.IntegrityError) as error:
+        # Bad input (e.g. a value too large for its column) - retrying the
+        # same payload will never succeed, unlike a connection failure.
+        conn.rollback()
+        logger.error("insert_price rejected invalid data: %s", _sanitize(str(error)))
+        raise ValueError("Price data is invalid.") from error
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("insert_price failed: %s", _sanitize(str(error)))
         raise RuntimeError("Unable to record price right now.") from error
