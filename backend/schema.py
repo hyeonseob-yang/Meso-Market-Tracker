@@ -74,7 +74,12 @@ class Mutation:
         _check_write_auth(info)
         _validate_price(price)
         occurred_at = price.datetime or datetime.now(timezone.utc).isoformat()
-        price_id = insert_price(price, occurred_at)
+        try:
+            price_id = insert_price(price, occurred_at)
+        except RuntimeError:
+            # GraphQL otherwise always returns 200, even on a resolver error.
+            info.context["response"].status_code = 503
+            raise
         return str(price_id)
 
     @strawberry.mutation

@@ -236,8 +236,10 @@ def test_prices_query_surfaces_database_failure(mock_get, client):
 
 @patch("schema.insert_price", side_effect=RuntimeError("Unable to record price right now."))
 def test_record_price_surfaces_database_failure(mock_insert, client):
+    # 503, not GraphQL's default 200 - the Collector's retry logic keys off
+    # HTTP status, and a database failure here is worth retrying.
     response = gql(client, RECORD_PRICE_MUTATION, VALID_PRICE_VARS)
-    assert response.status_code == 200
+    assert response.status_code == 503
     body = json.loads(response.data)
     assert body["data"] is None
     assert any("Unable to record price" in e["message"] for e in body["errors"])
