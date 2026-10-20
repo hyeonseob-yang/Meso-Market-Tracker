@@ -64,6 +64,18 @@ def test_insert_price_returns_id_on_success():
         assert insert_price(VALID_PRICE, "2026-09-30T00:00:00+00:00") == 42
 
 
+def test_insert_price_upserts_on_duplicate_datetime():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchone.return_value = (42,)
+
+    with patch("database._get_conn", return_value=conn):
+        insert_price(VALID_PRICE, "2026-09-30T00:00:00+00:00")
+
+    sql = cur.execute.call_args[0][0]
+    assert "ON CONFLICT (datetime) DO UPDATE" in sql
+
+
 def test_get_prices_with_no_range_has_no_where_clause():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value

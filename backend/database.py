@@ -34,7 +34,13 @@ def _get_conn():
 
 
 def insert_price(price: PriceInput, occurred_at: str):
-    sql = """INSERT INTO price(datetime, average, buy100M, buy1B, buy10B, sell100M, sell1B, sell10B, notes) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"""
+    # ON CONFLICT DO UPDATE (a no-op column reassignment) rather than DO
+    # NOTHING, so a retried insert still returns the existing row's id
+    # instead of an empty result.
+    sql = """INSERT INTO price(datetime, average, buy100M, buy1B, buy10B, sell100M, sell1B, sell10B, notes)
+             VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             ON CONFLICT (datetime) DO UPDATE SET datetime = EXCLUDED.datetime
+             RETURNING id"""
 
     try:
         conn = _get_conn()
