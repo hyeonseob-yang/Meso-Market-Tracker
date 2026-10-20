@@ -21,7 +21,8 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
+  profile = "meso-deploy"
 
   default_tags {
     tags = {
