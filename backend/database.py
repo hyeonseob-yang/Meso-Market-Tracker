@@ -65,7 +65,10 @@ def insert_price(price: PriceInput, occurred_at: str):
     except (psycopg2.DataError, psycopg2.IntegrityError) as error:
         # Bad input (e.g. a value too large for its column) - retrying the
         # same payload will never succeed, unlike a connection failure.
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass  # connection already dead - _get_conn() reconnects next call
         logger.error("insert_price rejected invalid data: %s", _sanitize(str(error)))
         raise ValueError("Price data is invalid.") from error
     except (Exception, psycopg2.DatabaseError) as error:

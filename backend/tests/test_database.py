@@ -78,6 +78,17 @@ def test_insert_price_raises_value_error_on_invalid_data(pg_error):
     conn.rollback.assert_called_once()
 
 
+def test_insert_price_still_raises_value_error_when_rollback_fails():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.execute.side_effect = psycopg2.DataError("value too long")
+    conn.rollback.side_effect = psycopg2.OperationalError("server closed the connection unexpectedly")
+
+    with patch("database._get_conn", return_value=conn):
+        with pytest.raises(ValueError, match="Price data is invalid"):
+            insert_price(VALID_PRICE, "2026-09-30T00:00:00+00:00")
+
+
 def test_insert_price_upserts_on_duplicate_datetime():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
