@@ -27,10 +27,19 @@ def _forecast(age_minutes):
     return {"updatedAt": (now - timedelta(minutes=age_minutes)).isoformat()}
 
 
-def _run(rows_or_none, forecast_age_minutes=30):
-    """Mocks _post: the GraphQL call returns the given rows and forecast
-    staleness (None rows simulates an unreachable API); returns whatever
-    text got sent to Discord."""
+def _snapshots(age_minutes):
+    """A forecastSnapshots(limit: 1) result aged by the given number of
+    minutes, or None to simulate no snapshot ever archived."""
+    if age_minutes is None:
+        return []
+    now = datetime.now(timezone.utc)
+    return [{"createdAt": (now - timedelta(minutes=age_minutes)).isoformat()}]
+
+
+def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60):
+    """Mocks _post: the GraphQL call returns the given rows and forecast/
+    snapshot staleness (None rows simulates an unreachable API); returns
+    whatever text got sent to Discord."""
     notifications = []
 
     def fake_post(url, body):
@@ -38,7 +47,13 @@ def _run(rows_or_none, forecast_age_minutes=30):
             if rows_or_none is None:
                 raise OSError("connection refused")
             return json.dumps(
-                {"data": {"latestPrices": rows_or_none, "forecast": _forecast(forecast_age_minutes)}}
+                {
+                    "data": {
+                        "latestPrices": rows_or_none,
+                        "forecast": _forecast(forecast_age_minutes),
+                        "forecastSnapshots": _snapshots(snapshot_age_minutes),
+                    }
+                }
             ).encode()
         notifications.append(json.loads(body)["content"])
         return b"{}"
@@ -122,3 +137,34 @@ def test_missing_forecast_notifies():
 def test_price_and_forecast_issues_both_notify_independently():
     notifications = _run(_rows(100), forecast_age_minutes=100)
     assert len(notifications) == 2
+
+
+def test_healthy_snapshot_sends_no_notification():
+    assert _run(_rows(30, 90), snapshot_age_minutes=60) == []
+
+
+def test_snapshot_just_under_a_day_old_does_not_notify():
+    # Up to ~24.5h is normal for a once-daily job, depending on check timing.
+    assert _run(_rows(30, 90), snapshot_age_minutes=1440) == []
+
+
+def test_stale_snapshot_in_first_band_notifies_once():
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=1530)
+    assert len(notifications) == 1
+    assert "no forecast snapshot archived in" in notifications[0]
+
+
+def test_stale_snapshot_outside_bands_does_not_renotify():
+    assert _run(_rows(30, 90), snapshot_age_minutes=1800) == []
+
+
+def test_still_stale_snapshot_after_two_days_notifies_again():
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=2970)
+    assert len(notifications) == 1
+    assert "still no forecast snapshot archived" in notifications[0]
+
+
+def test_missing_snapshot_notifies():
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=None)
+    assert len(notifications) == 1
+    assert "no forecast snapshot has ever been archived" in notifications[0]

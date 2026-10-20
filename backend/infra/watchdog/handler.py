@@ -17,7 +17,10 @@ from datetime import datetime, timezone
 
 API_URL = os.environ["TRACKER_API_URL"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
-QUERY = '{"query": "{ latestPrices(limit: 2) { datetime } forecast { updatedAt } }"}'
+QUERY = (
+    '{"query": "{ latestPrices(limit: 2) { datetime } forecast { updatedAt } '
+    'forecastSnapshots(limit: 1) { createdAt } }"}'
+)
 
 
 def _post(url: str, body: str) -> bytes:
@@ -81,6 +84,25 @@ def _check_forecast(data: dict) -> None:
         _notify(f"Meso Market: forecast cache still stale after {age / 60:.0f} hours.")
 
 
+def _check_snapshot(data: dict) -> None:
+    snapshots = data["forecastSnapshots"]
+
+    if not snapshots:
+        _notify("Meso Market: no forecast snapshot has ever been archived.")
+        return
+
+    created_at = datetime.fromisoformat(snapshots[0]["createdAt"])
+    age = (datetime.now(timezone.utc) - created_at).total_seconds() / 60
+
+    # The daily archive runs once at 00:05 UTC, so a healthy snapshot can be
+    # anywhere from minutes to just under 24.5 hours old depending on when
+    # this hourly check happens to run - bands start well past that ceiling.
+    if 1500 <= age < 1560:
+        _notify(f"Meso Market: no forecast snapshot archived in {age / 60:.0f} hours.")
+    elif 2940 <= age < 3000:
+        _notify(f"Meso Market: still no forecast snapshot archived after {age / 60:.0f} hours.")
+
+
 def handler(event, context):
     try:
         data = json.loads(_post(API_URL, QUERY))["data"]
@@ -90,3 +112,4 @@ def handler(event, context):
 
     _check_prices(data)
     _check_forecast(data)
+    _check_snapshot(data)
