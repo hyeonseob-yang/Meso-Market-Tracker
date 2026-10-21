@@ -98,7 +98,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
   }
 
   return (
-    <div>
+    <div className="flex h-full flex-col">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div role="group" aria-label="Time window" className="flex gap-2">
           {WINDOWS.map((window) => (
@@ -141,7 +141,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           </button>
         </div>
       </div>
-      <div className="relative h-[60vh]">
+      <div className="relative min-h-0 flex-1">
         <Line
           options={buildChartOptions(computeSpanDays(prices, visiblePoints))}
           data={buildChartData(prices, visiblePoints)}
