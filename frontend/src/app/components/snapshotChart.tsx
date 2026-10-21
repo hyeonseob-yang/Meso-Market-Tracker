@@ -42,10 +42,12 @@ export default function SnapshotChart({
 
   return (
     <div>
-      <Line
-        options={buildChartOptions(computeSpanDays(snapshot.history, snapshot.points, actual ?? []))}
-        data={buildChartData(snapshot.history, snapshot.points, actual ?? [])}
-      />
+      <div className="relative">
+        <Line
+          options={buildChartOptions(computeSpanDays(snapshot.history, snapshot.points, actual ?? []))}
+          data={buildChartData(snapshot.history, snapshot.points, actual ?? [])}
+        />
+      </div>
       {accuracy && accuracy.n > 0 && (
         <p className="mt-2 text-xs text-gray-500">
           vs. actual ({accuracy.n} matched points): avg error {accuracy.mae.toFixed(1)} ({accuracy.mape.toFixed(1)}%)

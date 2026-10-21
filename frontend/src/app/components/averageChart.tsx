@@ -141,10 +141,12 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           </button>
         </div>
       </div>
-      <Line
-        options={buildChartOptions(computeSpanDays(prices, visiblePoints))}
-        data={buildChartData(prices, visiblePoints)}
-      />
+      <div className="relative">
+        <Line
+          options={buildChartOptions(computeSpanDays(prices, visiblePoints))}
+          data={buildChartData(prices, visiblePoints)}
+        />
+      </div>
       {showForecast && forecastLoading && <p className="mt-2 text-xs text-gray-500">Loading forecast…</p>}
       {showForecast && forecast && (
         <p className="mt-2 text-xs text-gray-500">Model: {forecast.model}</p>
