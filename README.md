@@ -2,6 +2,8 @@
 
 A web app for tracking and visualising MapleStory meso market prices over time.
 
+**Live site:** https://meso-market-tracker.vercel.app/
+
 ## Features
 
 - **Chart view** — line chart of average meso market prices
