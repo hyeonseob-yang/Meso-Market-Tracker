@@ -42,7 +42,7 @@ export default function SnapshotChart({
 
   return (
     <div>
-      <div className="relative">
+      <div className="relative h-[60vh]">
         <Line
           options={buildChartOptions(computeSpanDays(snapshot.history, snapshot.points, actual ?? []))}
           data={buildChartData(snapshot.history, snapshot.points, actual ?? [])}

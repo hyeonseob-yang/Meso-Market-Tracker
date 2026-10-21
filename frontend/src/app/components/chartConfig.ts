@@ -11,6 +11,10 @@ export function buildChartOptions(spanDays: number) {
   const useWeekdayNames = spanDays <= WEEKDAY_LABEL_MAX_SPAN_DAYS;
   return {
     responsive: true,
+    // Without this, height is derived purely from width (default 2:1
+    // aspect ratio) - on a wide-but-short screen that can be taller than
+    // the actual available space. The container sets the real height instead.
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: "top" as const,

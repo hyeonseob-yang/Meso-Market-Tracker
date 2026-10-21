@@ -141,7 +141,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           </button>
         </div>
       </div>
-      <div className="relative">
+      <div className="relative h-[60vh]">
         <Line
           options={buildChartOptions(computeSpanDays(prices, visiblePoints))}
           data={buildChartData(prices, visiblePoints)}
