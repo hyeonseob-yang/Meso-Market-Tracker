@@ -30,7 +30,7 @@ export default function Wrapper({
             Meso Tracker
           </h1>
         </header>
-        <main className="mt-16 p-6 flex-1 overflow-auto">
+        <main className="mt-16 p-6 flex-1 min-h-0 overflow-auto">
           {children}
         </main>
       </div>
