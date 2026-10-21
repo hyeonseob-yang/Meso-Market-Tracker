@@ -73,8 +73,8 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
 
           return (
             <div key={snapshot.id} className="rounded border border-gray-200 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <p className="font-medium text-gray-900">
                     {format(new Date(snapshot.createdAt), "MMM d, yyyy HH:mm")}
                   </p>

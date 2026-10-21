@@ -99,7 +99,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div role="group" aria-label="Time window" className="flex gap-2">
           {WINDOWS.map((window) => (
             <button

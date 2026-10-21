@@ -12,7 +12,7 @@ export default function Wrapper({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-dvh bg-gray-100">
       <NavDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
       <div className="flex flex-col flex-1 md:ml-60">
         <header className="fixed top-0 left-0 right-0 md:left-60 h-16 bg-blue-700 flex items-center px-6 z-10 shadow">
