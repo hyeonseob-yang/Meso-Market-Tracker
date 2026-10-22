@@ -47,10 +47,3 @@ class ForecastSnapshotRecord:
     model_params: JSON | None
     points: JSON
     history_count: int
-
-    @strawberry.field
-    def history(self) -> JSON:
-        from database import get_recent_training_prices
-
-        records = get_recent_training_prices(before=self.created_at, limit=self.history_count)
-        return [{"datetime": r.datetime, "average": r.average} for r in records]

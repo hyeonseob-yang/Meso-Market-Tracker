@@ -182,31 +182,6 @@ def get_forecast_training_prices(since: str | None = None) -> list[PriceRecord]:
         raise RuntimeError("Unable to fetch forecast training prices right now.") from error
 
 
-def get_recent_training_prices(before: str, limit: int) -> list[PriceRecord]:
-    """The last `limit` non-manual price records at or before `before`,
-    oldest-first. Used to resolve a Forecast/ForecastSnapshotRecord's
-    `history` field - see models.Forecast.history."""
-    sql = """
-        SELECT id, datetime, average, buy100M, buy1B, buy10B,
-               sell100M, sell1B, sell10B, notes
-        FROM price
-        WHERE notes != 'manual' AND datetime <= %s
-        ORDER BY datetime DESC
-        LIMIT %s
-    """
-
-    try:
-        conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(sql, (before, limit))
-            rows = cur.fetchall()
-    except (Exception, psycopg2.DatabaseError) as error:
-        logger.error("get_recent_training_prices failed: %s", _sanitize(str(error)))
-        raise RuntimeError("Unable to fetch recent training prices right now.") from error
-
-    return [_row_to_record(row) for row in reversed(rows)]
-
-
 def upsert_forecast_cache(model: str, model_params, points, history_count: int) -> None:
     sql = """
         INSERT INTO forecast_cache (id, model, model_params, points, history_count)

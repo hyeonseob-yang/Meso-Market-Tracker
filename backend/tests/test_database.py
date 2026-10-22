@@ -10,7 +10,6 @@ from database import (
     get_forecast_snapshots,
     get_forecast_training_prices,
     get_latest_prices,
-    get_recent_training_prices,
     get_prices,
     insert_forecast_snapshot,
     insert_price,
@@ -193,42 +192,6 @@ def test_get_forecast_training_prices_raises_on_connection_failure():
     with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
         with pytest.raises(RuntimeError, match="Unable to fetch forecast training prices"):
             get_forecast_training_prices()
-
-
-def test_get_recent_training_prices_excludes_manual_orders_desc_with_limit():
-    conn = MagicMock()
-    cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchall.return_value = []
-
-    with patch("database._get_conn", return_value=conn):
-        get_recent_training_prices(before="2026-10-13T00:00:00+00:00", limit=5)
-
-    sql, params = cur.execute.call_args[0]
-    assert "notes != 'manual'" in sql
-    assert "datetime <= %s" in sql
-    assert "ORDER BY datetime DESC" in sql
-    assert params == ("2026-10-13T00:00:00+00:00", 5)
-
-
-def test_get_recent_training_prices_returns_oldest_first():
-    conn = MagicMock()
-    cur = conn.cursor.return_value.__enter__.return_value
-    # DB returns newest-first (per the DESC query) - function should flip it.
-    cur.fetchall.return_value = [
-        (2, "2026-10-13T02:00:00", 101, 1, 1, 1, 1, 1, 1, ""),
-        (1, "2026-10-13T01:00:00", 100, 1, 1, 1, 1, 1, 1, ""),
-    ]
-
-    with patch("database._get_conn", return_value=conn):
-        records = get_recent_training_prices(before="2026-10-13T03:00:00", limit=2)
-
-    assert [r.id for r in records] == [1, 2]
-
-
-def test_get_recent_training_prices_raises_on_connection_failure():
-    with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
-        with pytest.raises(RuntimeError, match="Unable to fetch recent training prices"):
-            get_recent_training_prices(before="2026-10-13T00:00:00+00:00", limit=5)
 
 
 def test_upsert_forecast_cache_wraps_jsonb_columns():
