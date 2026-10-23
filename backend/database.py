@@ -202,6 +202,13 @@ def upsert_forecast_cache(model: str, model_params, points, history_count: int) 
                 (model, Json(model_params) if model_params is not None else None, Json(points), history_count),
             )
             conn.commit()
+    except (psycopg2.DataError, psycopg2.IntegrityError) as error:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.error("upsert_forecast_cache rejected invalid data: %s", _sanitize(str(error)))
+        raise ValueError("Forecast cache data is invalid.") from error
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("upsert_forecast_cache failed: %s", _sanitize(str(error)))
         raise RuntimeError("Unable to save the precomputed forecast right now.") from error
@@ -238,6 +245,13 @@ def insert_forecast_snapshot(history_count: int, points, model: str, model_param
             )
             rows = cur.fetchone()
             conn.commit()
+    except (psycopg2.DataError, psycopg2.IntegrityError) as error:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.error("insert_forecast_snapshot rejected invalid data: %s", _sanitize(str(error)))
+        raise ValueError("Forecast snapshot data is invalid.") from error
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("insert_forecast_snapshot failed: %s", _sanitize(str(error)))
         raise RuntimeError("Unable to save forecast snapshot right now.") from error

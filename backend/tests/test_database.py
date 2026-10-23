@@ -226,6 +226,19 @@ def test_upsert_forecast_cache_raises_on_connection_failure():
             upsert_forecast_cache("AutoETS", None, [], 0)
 
 
+@pytest.mark.parametrize("pg_error", [psycopg2.DataError, psycopg2.IntegrityError])
+def test_upsert_forecast_cache_raises_value_error_on_invalid_data(pg_error):
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.execute.side_effect = pg_error("value too long")
+
+    with patch("database._get_conn", return_value=conn):
+        with pytest.raises(ValueError, match="Forecast cache data is invalid"):
+            upsert_forecast_cache("AutoETS", None, [], 0)
+
+    conn.rollback.assert_called_once()
+
+
 def test_get_forecast_cache_returns_none_when_no_row():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
@@ -295,6 +308,19 @@ def test_insert_forecast_snapshot_raises_on_connection_failure():
     with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
         with pytest.raises(RuntimeError, match="Unable to save forecast snapshot"):
             insert_forecast_snapshot(0, [], "AutoETS", None)
+
+
+@pytest.mark.parametrize("pg_error", [psycopg2.DataError, psycopg2.IntegrityError])
+def test_insert_forecast_snapshot_raises_value_error_on_invalid_data(pg_error):
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.execute.side_effect = pg_error("value too long")
+
+    with patch("database._get_conn", return_value=conn):
+        with pytest.raises(ValueError, match="Forecast snapshot data is invalid"):
+            insert_forecast_snapshot(0, [], "AutoETS", None)
+
+    conn.rollback.assert_called_once()
 
 
 def test_get_forecast_snapshots_orders_by_created_at_desc_with_limit():
