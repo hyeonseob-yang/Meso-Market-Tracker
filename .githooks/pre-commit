@@ -2,6 +2,10 @@
 # Blocks the commit if gitleaks finds a secret in staged changes.
 # One-time setup: git config core.hooksPath .githooks
 
+# Non-interactive shells (e.g. automation invoking git commit directly)
+# often don't have ~/.local/bin on PATH even when it's installed there.
+export PATH="$HOME/.local/bin:$PATH"
+
 if ! command -v gitleaks >/dev/null 2>&1; then
   echo "gitleaks not found - install it (https://github.com/gitleaks/gitleaks#installing) and retry." >&2
   exit 1
