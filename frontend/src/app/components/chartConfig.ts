@@ -13,6 +13,12 @@ export function buildChartOptions(spanDays: number) {
     responsive: true,
     // Height comes from the container, not an aspect ratio derived from width.
     maintainAspectRatio: false,
+    // No point markers - data is dense enough that they just clutter the line.
+    elements: {
+      point: {
+        radius: 0,
+      },
+    },
     plugins: {
       legend: {
         position: "top" as const,
@@ -83,14 +89,12 @@ export function forecastDatasets(
       label: "Forecast range",
       data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.upper }))],
       borderWidth: 0,
-      pointRadius: 0,
       fill: false,
     },
     {
       label: "Forecast range",
       data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.lower }))],
       borderWidth: 0,
-      pointRadius: 0,
       backgroundColor: "rgba(234, 88, 12, 0.15)",
       fill: "-1",
     },
@@ -100,7 +104,6 @@ export function forecastDatasets(
       data: [...lead, ...forecast.map((f) => ({ x: f.datetime, y: f.predicted }))],
       borderColor: "#ea580c",
       borderDash: [6, 6],
-      pointRadius: 0,
     },
   ];
 }
@@ -128,7 +131,6 @@ export function buildChartData(
               label: "Actual",
               data: actual.map((p) => ({ x: p.datetime, y: p.average })),
               borderColor: "#16a34a",
-              pointRadius: 2,
             },
           ]
         : []),
