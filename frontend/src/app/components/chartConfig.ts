@@ -19,6 +19,11 @@ export function buildChartOptions(spanDays: number) {
         radius: 0,
       },
     },
+    // Without markers there's no hit target to intersect - hover by x-position instead.
+    interaction: {
+      mode: "index" as const,
+      intersect: false,
+    },
     plugins: {
       legend: {
         position: "top" as const,
