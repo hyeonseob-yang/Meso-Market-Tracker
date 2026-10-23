@@ -28,6 +28,13 @@ The frontend is a Next.js app with Server Actions that call the backend API. The
 - Node.js 22+
 - Python 3.12+
 - Docker (optional, for running the backend as a container)
+- [gitleaks](https://github.com/gitleaks/gitleaks#installing), to run the pre-commit secret scan
+
+Enable the pre-commit hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ### Frontend
 

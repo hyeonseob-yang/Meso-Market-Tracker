@@ -1,0 +1,10 @@
+#!/bin/sh
+# Blocks the commit if gitleaks finds a secret in staged changes.
+# One-time setup: git config core.hooksPath .githooks
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks not found - install it (https://github.com/gitleaks/gitleaks#installing) and retry." >&2
+  exit 1
+fi
+
+gitleaks protect --staged -v
