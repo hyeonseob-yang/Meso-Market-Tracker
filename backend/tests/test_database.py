@@ -1,3 +1,4 @@
+import dataclasses
 from unittest.mock import MagicMock, patch
 
 import psycopg2
@@ -98,6 +99,19 @@ def test_insert_price_upserts_on_duplicate_datetime():
 
     sql = cur.execute.call_args[0][0]
     assert "ON CONFLICT (datetime) DO UPDATE" in sql
+
+
+def test_insert_price_stores_zero_average_as_null():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchone.return_value = (42,)
+    zero_average_price = dataclasses.replace(VALID_PRICE, average=0)
+
+    with patch("database._get_conn", return_value=conn):
+        insert_price(zero_average_price, "2026-09-30T00:00:00+00:00")
+
+    _, params = cur.execute.call_args[0]
+    assert params[1] is None
 
 
 def test_get_prices_with_no_range_has_no_where_clause():

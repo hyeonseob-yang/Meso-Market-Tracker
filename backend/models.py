@@ -5,7 +5,7 @@ from strawberry.scalars import JSON
 
 @dataclasses.dataclass
 class _PriceFields:
-    average: int | None  # null when the rolling 100B-meso trade window has no completed trades
+    average: int
     buy100M: int
     buy1B: int
     buy10B: int
@@ -26,6 +26,7 @@ class PriceInput(_PriceFields):
 
 @strawberry.type
 class PriceRecord(_PriceFields):
+    average: int | None  # null when the rolling 100B-meso trade window had no completed trades
     id: int
     datetime: str
 

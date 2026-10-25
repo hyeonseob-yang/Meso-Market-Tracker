@@ -42,6 +42,10 @@ def insert_price(price: PriceInput, occurred_at: str):
              ON CONFLICT (datetime) DO UPDATE SET datetime = EXCLUDED.datetime
              RETURNING id"""
 
+    # 0 is what the Collector reports for an empty rolling trade window -
+    # stored as NULL rather than a misleading literal price of 0.
+    average = None if price.average == 0 else price.average
+
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
@@ -49,7 +53,7 @@ def insert_price(price: PriceInput, occurred_at: str):
                 sql,
                 (
                     occurred_at,
-                    price.average,
+                    average,
                     price.buy100M,
                     price.buy1B,
                     price.buy10B,

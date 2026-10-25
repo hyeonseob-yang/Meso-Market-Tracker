@@ -257,11 +257,11 @@ def test_record_price_does_not_retry_invalid_data(mock_insert, client):
 
 @patch("schema.insert_price", return_value=1)
 def test_record_price_rejects_zero_price(mock_insert, client):
-    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "buy100M": 0}}
     response = gql(client, RECORD_PRICE_MUTATION, vars)
     body = json.loads(response.data)
     assert body["data"] is None
-    assert any("average" in e["message"] for e in body["errors"])
+    assert any("buy100M" in e["message"] for e in body["errors"])
     mock_insert.assert_not_called()
 
 
@@ -276,15 +276,23 @@ def test_record_price_rejects_negative_price(mock_insert, client):
 
 
 @patch("schema.insert_price", return_value=1)
-def test_record_price_accepts_null_average(mock_insert, client):
-    # A null average means the rolling trade window was empty - a real
-    # reading, not invalid data, unlike the other PRICE_FIELDS.
+def test_record_price_rejects_null_average(mock_insert, client):
+    # average is a non-nullable Int - the Collector reports 0 for an empty
+    # rolling trade window, not null; this is rejected before our own code runs.
     vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": None}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    mock_insert.assert_not_called()
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_accepts_zero_average(mock_insert, client):
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}
     response = gql(client, RECORD_PRICE_MUTATION, vars)
     body = json.loads(response.data)
     assert body.get("errors") is None
     mock_insert.assert_called_once()
-    assert mock_insert.call_args[0][0].average is None
 
 
 @patch("schema.insert_price", return_value=1)
