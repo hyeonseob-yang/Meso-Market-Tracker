@@ -36,6 +36,18 @@ describe("computeAccuracy", () => {
     expect(result.n).toBe(1);
     expect(result.mae).toBeCloseTo(5);
   });
+
+  it("excludes readings with a null average (no completed trades) rather than treating it as 0", () => {
+    const actual: PriceRow[] = [
+      { datetime: "2026-10-13T00:00:00Z", average: null },
+      { datetime: "2026-10-13T01:00:00Z", average: 112 }, // |112-102| = 10
+    ];
+
+    const result = computeAccuracy(POINTS, actual);
+
+    expect(result.n).toBe(1);
+    expect(result.mae).toBeCloseTo(10);
+  });
 });
 
 describe("buildChartData", () => {

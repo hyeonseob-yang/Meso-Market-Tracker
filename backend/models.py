@@ -5,7 +5,7 @@ from strawberry.scalars import JSON
 
 @dataclasses.dataclass
 class _PriceFields:
-    average: int
+    average: int | None  # null when the in-game 100B-meso trailing average has no completed trades yet
     buy100M: int
     buy1B: int
     buy10B: int

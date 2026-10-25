@@ -43,6 +43,20 @@ def test_resample_hourly_forward_fills_a_mid_series_gap():
     assert series.iloc[5] == series.iloc[3]
 
 
+def test_resample_hourly_treats_null_average_as_a_gap():
+    # A null average (no completed trades in-game) is a real reading, not a
+    # missing record - but should still be forward-filled the same way.
+    records = _hourly_records(10)
+    records[4].average = None
+    records[5].average = None
+
+    series = resample_hourly(records)
+
+    assert len(series) == 10
+    assert series.iloc[4] == series.iloc[3]
+    assert series.iloc[5] == series.iloc[3]
+
+
 @patch("forecasting.AutoETS", side_effect=RuntimeError("mocked - avoids a real multi-second sp=168 fit"))
 @patch("forecasting.get_forecast_training_prices")
 def test_compute_forecast_horizon_derived_from_training_span(mock_get, mock_autoets):

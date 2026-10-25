@@ -1,6 +1,7 @@
 import type { ChartData } from "chart.js";
 
-export type PriceRow = { datetime: string; average: number };
+// average is null when the in-game trailing-trade average had no completed trades.
+export type PriceRow = { datetime: string; average: number | null };
 
 export type ForecastPoint = { datetime: string; predicted: number; lower: number; upper: number };
 
@@ -81,7 +82,7 @@ export function computeSpanDays(
 export function forecastDatasets(
   anchor: PriceRow | null,
   forecast: ForecastPoint[],
-): NonNullable<ChartData<"line", { x: string; y: number }[]>["datasets"]> {
+): NonNullable<ChartData<"line", { x: string; y: number | null }[]>["datasets"]> {
   if (forecast.length === 0) return [];
 
   const lead = anchor ? [{ x: anchor.datetime, y: anchor.average }] : [];
@@ -120,7 +121,7 @@ export function buildChartData(
   history: PriceRow[],
   forecast: ForecastPoint[],
   actual: PriceRow[] = [],
-): ChartData<"line", { x: string; y: number }[]> {
+): ChartData<"line", { x: string; y: number | null }[]> {
   const anchor = history[history.length - 1] ?? null;
   return {
     datasets: [
@@ -155,6 +156,8 @@ export function computeAccuracy(points: ForecastPoint[], actual: PriceRow[]): Ac
   let n = 0;
 
   for (const a of actual) {
+    if (a.average === null) continue;
+
     const t = new Date(a.datetime).getTime();
     let nearest: ForecastPoint | null = null;
     let nearestDist = Infinity;

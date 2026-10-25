@@ -36,6 +36,8 @@ def _validate_price(price: PriceInput) -> None:
 
     for field in PRICE_FIELDS:
         value = getattr(price, field)
+        if field == "average" and value is None:
+            continue
         if value <= 0:
             raise ValueError(f"{field} must be greater than 0, got {value}.")
 

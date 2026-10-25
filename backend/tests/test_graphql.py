@@ -275,6 +275,27 @@ def test_record_price_rejects_negative_price(mock_insert, client):
     mock_insert.assert_not_called()
 
 
+@patch("schema.insert_price", return_value=1)
+def test_record_price_accepts_null_average(mock_insert, client):
+    # A null average means no completed trades in-game - a real reading,
+    # not invalid data, unlike the other PRICE_FIELDS.
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": None}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body.get("errors") is None
+    mock_insert.assert_called_once()
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_rejects_negative_average(mock_insert, client):
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": -5}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("average" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
 def test_health_query(client):
     response = gql(client, "{ health }")
     assert response.status_code == 200

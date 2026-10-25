@@ -22,6 +22,9 @@ _CONFIDENCE_COVERAGE = 0.9
 
 
 def resample_hourly(records: list[PriceRecord]) -> pd.Series:
+    # A null average means no completed trades for this reading - treated as
+    # a gap for now, same as a missing record (see the forward-fill below).
+    records = [r for r in records if r.average is not None]
     if len(records) < 2:
         raise ValueError("Need at least 2 records to resample.")
 
