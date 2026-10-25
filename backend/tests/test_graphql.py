@@ -257,11 +257,13 @@ def test_record_price_does_not_retry_invalid_data(mock_insert, client):
 
 @patch("schema.insert_price", return_value=1)
 def test_record_price_rejects_zero_price(mock_insert, client):
-    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}
+    # average is exempt (see test_record_price_converts_zero_average_to_null) -
+    # every other PRICE_FIELD still rejects 0.
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "buy100M": 0}}
     response = gql(client, RECORD_PRICE_MUTATION, vars)
     body = json.loads(response.data)
     assert body["data"] is None
-    assert any("average" in e["message"] for e in body["errors"])
+    assert any("buy100M" in e["message"] for e in body["errors"])
     mock_insert.assert_not_called()
 
 
@@ -284,6 +286,19 @@ def test_record_price_accepts_null_average(mock_insert, client):
     body = json.loads(response.data)
     assert body.get("errors") is None
     mock_insert.assert_called_once()
+    assert mock_insert.call_args[0][0].average is None
+
+
+@patch("schema.insert_price", return_value=1)
+def test_record_price_converts_zero_average_to_null(mock_insert, client):
+    # 0 is what the Collector actually sends for an empty trade window -
+    # accepted and normalized to null before it reaches storage.
+    vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": 0}}
+    response = gql(client, RECORD_PRICE_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body.get("errors") is None
+    mock_insert.assert_called_once()
+    assert mock_insert.call_args[0][0].average is None
 
 
 @patch("schema.insert_price", return_value=1)

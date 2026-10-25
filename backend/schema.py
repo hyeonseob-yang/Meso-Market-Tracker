@@ -36,7 +36,7 @@ def _validate_price(price: PriceInput) -> None:
 
     for field in PRICE_FIELDS:
         value = getattr(price, field)
-        if field == "average" and value is None:
+        if field == "average" and value in (None, 0):
             continue
         if value <= 0:
             raise ValueError(f"{field} must be greater than 0, got {value}.")
@@ -75,6 +75,10 @@ class Mutation:
     def record_price(self, info: Info, price: PriceInput) -> str:
         _check_write_auth(info)
         _validate_price(price)
+        # 0 and null both mean the rolling trade window was empty - only 0
+        # reaches here from a real Collector, but either is accepted.
+        if price.average == 0:
+            price.average = None
         occurred_at = price.datetime or datetime.now(timezone.utc).isoformat()
         try:
             price_id = insert_price(price, occurred_at)
