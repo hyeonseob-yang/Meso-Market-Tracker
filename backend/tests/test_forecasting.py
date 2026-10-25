@@ -44,8 +44,8 @@ def test_resample_hourly_forward_fills_a_mid_series_gap():
 
 
 def test_resample_hourly_treats_null_average_as_a_gap():
-    # A null average (no completed trades in-game) is a real reading, not a
-    # missing record - but should still be forward-filled the same way.
+    # A null average (the rolling trade window was empty) is a real
+    # reading, not a missing record - but still forward-filled the same way.
     records = _hourly_records(10)
     records[4].average = None
     records[5].average = None

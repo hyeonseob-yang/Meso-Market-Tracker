@@ -277,8 +277,8 @@ def test_record_price_rejects_negative_price(mock_insert, client):
 
 @patch("schema.insert_price", return_value=1)
 def test_record_price_accepts_null_average(mock_insert, client):
-    # A null average means no completed trades in-game - a real reading,
-    # not invalid data, unlike the other PRICE_FIELDS.
+    # A null average means the rolling trade window was empty - a real
+    # reading, not invalid data, unlike the other PRICE_FIELDS.
     vars = {**VALID_PRICE_VARS, "price": {**VALID_PRICE_VARS["price"], "average": None}}
     response = gql(client, RECORD_PRICE_MUTATION, vars)
     body = json.loads(response.data)

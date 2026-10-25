@@ -1,6 +1,6 @@
 import type { ChartData } from "chart.js";
 
-// average is null when the in-game trailing-trade average had no completed trades.
+// average is null when the rolling 100B-meso trade window had no completed trades.
 export type PriceRow = { datetime: string; average: number | null };
 
 export type ForecastPoint = { datetime: string; predicted: number; lower: number; upper: number };
