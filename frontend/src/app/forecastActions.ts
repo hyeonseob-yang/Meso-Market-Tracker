@@ -5,7 +5,8 @@ import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
 
-// No `history` field - unused here, and reconstructing it on read is expensive.
+// No `history` field - the live forecast doesn't need it, and
+// reconstructing it on read is expensive.
 export type Forecast = {
   model: string;
   modelParams: Record<string, unknown> | null;
