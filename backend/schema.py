@@ -124,9 +124,6 @@ class Query:
 
     @strawberry.field
     def latest_prices(self, limit: int = 2) -> list[PriceRecord]:
-        """Most recent rows, newest first - cheap even against a large
-        table, unlike paging through `prices` to find the tail end of its
-        oldest-first ordering. Built for the staleness watchdog."""
         return get_latest_prices(limit)
 
     @strawberry.field
