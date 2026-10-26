@@ -19,13 +19,13 @@ from database import (
 from models import PriceInput
 
 VALID_PRICE = PriceInput(
-    average=1050,
-    buy100M=1000,
-    buy1B=990,
-    buy10B=980,
-    sell100M=1100,
-    sell1B=1090,
-    sell10B=1080,
+    average=450,
+    buy100M=400,
+    buy1B=390,
+    buy10B=380,
+    sell100M=500,
+    sell1B=490,
+    sell10B=480,
     notes="Test entry",
 )
 
