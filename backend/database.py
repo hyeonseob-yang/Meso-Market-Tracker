@@ -134,11 +134,9 @@ def get_prices(
 
 
 def get_latest_prices(limit: int = 2) -> list[PriceRecord]:
-    """Most recent `limit` rows, newest first - O(limit) via the index on
-    datetime, unlike get_prices which would need the whole table scanned
-    and sorted to find the tail end of an ASC-ordered range. Built for the
-    watchdog Lambda (see infra/watchdog/), which only needs the last row or
-    two to check staleness, not the full history."""
+    """O(limit) via the index on datetime. Built for the watchdog Lambda
+    (see infra/watchdog/), which only needs the last row or two to check
+    staleness."""
     sql = """
         SELECT id, datetime, average, buy100M, buy1B, buy10B,
                sell100M, sell1B, sell10B, notes
