@@ -19,9 +19,8 @@ export type ForecastSnapshotSummary = {
   historyCount: number;
   points: ForecastPoint[];
 };
-// history is kept out of the summary - reconstructing it on every read is
-// expensive and grows over time. Only added here, for the one snapshot
-// a reader actually opens.
+// Not in Forecast or ForecastSnapshotSummary - reconstructing it on every
+// read is expensive and grows over time.
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
