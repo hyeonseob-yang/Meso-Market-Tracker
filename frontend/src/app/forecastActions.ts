@@ -19,8 +19,8 @@ export type ForecastSnapshotSummary = {
   historyCount: number;
   points: ForecastPoint[];
 };
-// Not in Forecast or ForecastSnapshotSummary - reconstructing it on every
-// read is expensive and grows over time.
+// `history` isn't in Forecast or ForecastSnapshotSummary - reconstructing
+// it on every read is expensive and grows over time.
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
