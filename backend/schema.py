@@ -22,51 +22,6 @@ RECORD_PRICE_SECRET_HEADER = "x-record-price-secret"
 FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret"
 
 
-def _parse_datetime_arg(name: str, value: str | None) -> None:
-    if value is None:
-        return
-    try:
-        datetime.fromisoformat(value)
-    except ValueError:
-        raise ValueError(f"Invalid {name}: '{value}'. Expected ISO 8601 format.")
-
-
-def _validate_price(price: PriceInput) -> None:
-    _parse_datetime_arg("datetime", price.datetime)
-
-    for field in PRICE_FIELDS:
-        value = getattr(price, field)
-        # Only average can be 0 - an empty rolling trade window.
-        if field == "average" and value == 0:
-            continue
-        if value <= 0:
-            raise ValueError(f"{field} must be greater than 0, got {value}.")
-
-
-def _check_write_auth(info: Info) -> None:
-    """Gate writes behind a shared secret - recordPrice is otherwise open to
-    anyone who finds the endpoint."""
-    expected = os.environ.get("RECORD_PRICE_SECRET")
-    if not expected:
-        raise PermissionError("Writes are not configured.")
-
-    provided = info.context["request"].headers.get(RECORD_PRICE_SECRET_HEADER)
-    if provided != expected:
-        raise PermissionError("Invalid or missing credentials.")
-
-
-def _check_forecast_snapshot_write_auth(info: Info) -> None:
-    """Gates forecast-snapshot writes - this secret is held by the
-    Vercel-hosted frontend on behalf of site visitors, not an external bot."""
-    expected = os.environ.get("FORECAST_SNAPSHOT_SECRET")
-    if not expected:
-        raise PermissionError("Writes are not configured.")
-
-    provided = info.context["request"].headers.get(FORECAST_SNAPSHOT_SECRET_HEADER)
-    if provided != expected:
-        raise PermissionError("Invalid or missing credentials.")
-
-
 @strawberry.type
 class Mutation:
     @strawberry.mutation
@@ -138,6 +93,51 @@ class Query:
     @strawberry.field
     def forecast_snapshots(self, limit: int = 50) -> list[ForecastSnapshotRecord]:
         return get_forecast_snapshots(limit)
+
+
+def _check_write_auth(info: Info) -> None:
+    """Gate writes behind a shared secret - recordPrice is otherwise open to
+    anyone who finds the endpoint."""
+    expected = os.environ.get("RECORD_PRICE_SECRET")
+    if not expected:
+        raise PermissionError("Writes are not configured.")
+
+    provided = info.context["request"].headers.get(RECORD_PRICE_SECRET_HEADER)
+    if provided != expected:
+        raise PermissionError("Invalid or missing credentials.")
+
+
+def _validate_price(price: PriceInput) -> None:
+    _parse_datetime_arg("datetime", price.datetime)
+
+    for field in PRICE_FIELDS:
+        value = getattr(price, field)
+        # Only average can be 0 - an empty rolling trade window.
+        if field == "average" and value == 0:
+            continue
+        if value <= 0:
+            raise ValueError(f"{field} must be greater than 0, got {value}.")
+
+
+def _parse_datetime_arg(name: str, value: str | None) -> None:
+    if value is None:
+        return
+    try:
+        datetime.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"Invalid {name}: '{value}'. Expected ISO 8601 format.")
+
+
+def _check_forecast_snapshot_write_auth(info: Info) -> None:
+    """Gates forecast-snapshot writes - this secret is held by the
+    Vercel-hosted frontend on behalf of site visitors, not an external bot."""
+    expected = os.environ.get("FORECAST_SNAPSHOT_SECRET")
+    if not expected:
+        raise PermissionError("Writes are not configured.")
+
+    provided = info.context["request"].headers.get(FORECAST_SNAPSHOT_SECRET_HEADER)
+    if provided != expected:
+        raise PermissionError("Invalid or missing credentials.")
 
 
 # Introspection/GraphiQL expose the exact schema to anyone who finds the

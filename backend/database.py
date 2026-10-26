@@ -33,6 +33,18 @@ def _get_conn():
         return _conn
 
 
+def _get_config():
+    return {
+        "host": os.environ["DB_HOST"],
+        "port": os.environ.get("DB_PORT", "6543"),
+        "dbname": os.environ["DB_NAME"],
+        "user": os.environ["DB_USER"],
+        "password": os.environ["DB_PASSWORD"],
+        "sslmode": "require",
+        "connect_timeout": 5,
+    }
+
+
 def insert_price(price: PriceInput, occurred_at: str):
     # ON CONFLICT DO UPDATE (a no-op column reassignment) rather than DO
     # NOTHING, so a retried insert still returns the existing row's id
@@ -264,17 +276,6 @@ def insert_forecast_snapshot(history_count: int, points, model: str, model_param
     return rows[0]
 
 
-def _row_to_forecast_snapshot_record(row) -> ForecastSnapshotRecord:
-    return ForecastSnapshotRecord(
-        id=row[0],
-        created_at=str(row[1]),
-        model=row[2],
-        model_params=row[3],
-        points=row[4],
-        history_count=row[5],
-    )
-
-
 def get_forecast_snapshots(limit: int = 50) -> list[ForecastSnapshotRecord]:
     sql = """
         SELECT id, created_at, model, model_params, points, history_count
@@ -293,6 +294,17 @@ def get_forecast_snapshots(limit: int = 50) -> list[ForecastSnapshotRecord]:
         raise RuntimeError("Unable to fetch forecast snapshots right now.") from error
 
 
+def _row_to_forecast_snapshot_record(row) -> ForecastSnapshotRecord:
+    return ForecastSnapshotRecord(
+        id=row[0],
+        created_at=str(row[1]),
+        model=row[2],
+        model_params=row[3],
+        points=row[4],
+        history_count=row[5],
+    )
+
+
 def delete_forecast_snapshot(id: int) -> bool:
     sql = "DELETE FROM forecast_snapshot WHERE id = %s"
 
@@ -307,15 +319,3 @@ def delete_forecast_snapshot(id: int) -> bool:
         raise RuntimeError("Unable to delete forecast snapshot right now.") from error
 
     return deleted
-
-
-def _get_config():
-    return {
-        "host": os.environ["DB_HOST"],
-        "port": os.environ.get("DB_PORT", "6543"),
-        "dbname": os.environ["DB_NAME"],
-        "user": os.environ["DB_USER"],
-        "password": os.environ["DB_PASSWORD"],
-        "sslmode": "require",
-        "connect_timeout": 5,
-    }

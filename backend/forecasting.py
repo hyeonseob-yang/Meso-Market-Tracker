@@ -18,6 +18,39 @@ MIN_DATA_POINTS_FOR_AUTOETS = 2 * SEASONAL_PERIOD_HOURS
 _CONFIDENCE_COVERAGE = 0.9
 
 
+def compute_forecast() -> Forecast:
+    since = (datetime.now(timezone.utc) - timedelta(days=MAX_TRAINING_DAYS)).isoformat()
+    records = get_forecast_training_prices(since=since)
+
+    if len(records) < 2:
+        raise RuntimeError("Not enough price history to generate a forecast.")
+
+    series = resample_hourly(records)
+
+    training_span_days = (series.index[-1] - series.index[0]).total_seconds() / 86400
+    horizon_days = max(1, int(training_span_days // 2))
+    fh = np.arange(1, horizon_days * 24 + 1)
+
+    model_name, model_params, model = _fit_model(series)
+    point_forecast = model.predict(fh=fh)
+    lower, upper = _predict_interval(model, fh, series, point_forecast)
+
+    timestamps = point_forecast.index
+    predicted_values = point_forecast.to_numpy()
+    points = [
+        {
+            # Explicit UTC offset - a naive string parses as local time downstream.
+            "datetime": pd.Timestamp(ts, tz="UTC").isoformat(),
+            "predicted": float(p),
+            "lower": float(lo),
+            "upper": float(hi),
+        }
+        for ts, p, lo, hi in zip(timestamps, predicted_values, lower, upper)
+    ]
+
+    return Forecast(model=model_name, model_params=model_params, points=points, history_count=len(records))
+
+
 def resample_hourly(records: list[PriceRecord]) -> pd.Series:
     # A null average means the rolling trade window was empty at this
     # reading - treated as a gap for now, same as a missing record.
@@ -65,36 +98,3 @@ def _predict_interval(
         spread = resid_std * np.sqrt(np.arange(1, len(fh) + 1)) * 1.64
         predicted = point_forecast.to_numpy()
         return predicted - spread, predicted + spread
-
-
-def compute_forecast() -> Forecast:
-    since = (datetime.now(timezone.utc) - timedelta(days=MAX_TRAINING_DAYS)).isoformat()
-    records = get_forecast_training_prices(since=since)
-
-    if len(records) < 2:
-        raise RuntimeError("Not enough price history to generate a forecast.")
-
-    series = resample_hourly(records)
-
-    training_span_days = (series.index[-1] - series.index[0]).total_seconds() / 86400
-    horizon_days = max(1, int(training_span_days // 2))
-    fh = np.arange(1, horizon_days * 24 + 1)
-
-    model_name, model_params, model = _fit_model(series)
-    point_forecast = model.predict(fh=fh)
-    lower, upper = _predict_interval(model, fh, series, point_forecast)
-
-    timestamps = point_forecast.index
-    predicted_values = point_forecast.to_numpy()
-    points = [
-        {
-            # Explicit UTC offset - a naive string parses as local time downstream.
-            "datetime": pd.Timestamp(ts, tz="UTC").isoformat(),
-            "predicted": float(p),
-            "lower": float(lo),
-            "upper": float(hi),
-        }
-        for ts, p, lo, hi in zip(timestamps, predicted_values, lower, upper)
-    ]
-
-    return Forecast(model=model_name, model_params=model_params, points=points, history_count=len(records))
