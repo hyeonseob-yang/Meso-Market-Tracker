@@ -114,12 +114,10 @@ export function forecastDatasets(
   ];
 }
 
-// History + forecast, optionally with the real data recorded over the same
-// span as the forecast (for comparing a saved snapshot against what
-// actually happened).
 export function buildChartData(
   history: PriceRow[],
   forecast: ForecastPoint[],
+  // For comparing a saved snapshot's forecast against what really happened.
   actual: PriceRow[] = [],
 ): ChartData<"line", { x: string; y: number | null }[]> {
   const anchor = history[history.length - 1] ?? null;

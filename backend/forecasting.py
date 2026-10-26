@@ -12,9 +12,6 @@ from models import Forecast, PriceRecord
 
 logger = logging.getLogger(__name__)
 
-# The seasonal period AutoETS searches for. The model tag encodes it
-# (f"AutoETS(sp={SEASONAL_PERIOD_HOURS})") so snapshots stay distinguishable
-# if this value changes later.
 SEASONAL_PERIOD_HOURS = 24 * 7
 # 2 full cycles minimum - avoids attempting a fit sktime would refuse anyway.
 MIN_DATA_POINTS_FOR_AUTOETS = 2 * SEASONAL_PERIOD_HOURS
@@ -42,6 +39,8 @@ def _fit_model(series: pd.Series) -> tuple[str, dict, object]:
         try:
             model = AutoETS(auto=True, sp=SEASONAL_PERIOD_HOURS, n_jobs=1)
             model.fit(series)
+            # Encoded in the tag so snapshots stay distinguishable if this
+            # value changes later.
             model_name = f"AutoETS(sp={SEASONAL_PERIOD_HOURS})"
             return model_name, {"auto": True, "sp": SEASONAL_PERIOD_HOURS}, model
         except Exception as error:
