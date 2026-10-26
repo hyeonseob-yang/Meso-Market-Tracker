@@ -136,8 +136,7 @@ class Query:
     def forecast(self) -> Forecast | None:
         """Reads the precomputed cache - null before the first scheduled
         run has ever populated it. No fitting happens on this request
-        path; see forecasting.compute_forecast and the /internal/trigger
-        scheduled job."""
+        path; that's done by a separate scheduled job."""
         return get_forecast_cache()
 
     @strawberry.field
@@ -145,11 +144,9 @@ class Query:
         return get_forecast_snapshots(limit)
 
 
-# Introspection/GraphiQL make the schema self-documenting, which is
-# convenient for local dev but means anyone who finds the deployed endpoint
-# can discover the exact mutation shape with zero effort. Off by default in
-# a real deployment (set via GRAPHQL_INTROSPECTION_ENABLED=false in Terraform);
-# on locally, where .env doesn't set it, for easier manual testing.
+# Introspection/GraphiQL expose the exact schema to anyone who finds the
+# endpoint - off by default in production (GRAPHQL_INTROSPECTION_ENABLED=false
+# in Terraform), on locally for convenience.
 _introspection_enabled = os.environ.get("GRAPHQL_INTROSPECTION_ENABLED", "true").lower() != "false"
 _extensions = [] if _introspection_enabled else [DisableIntrospection]
 
