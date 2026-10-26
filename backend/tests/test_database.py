@@ -32,16 +32,14 @@ VALID_PRICE = PriceInput(
 
 @patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused"))
 def test_get_prices_raises_on_connection_failure(mock_get_conn):
-    # Before this fix, a DB outage was swallowed and an empty list returned
-    # - indistinguishable from "there are genuinely no prices yet".
+    # Distinguishes a DB outage from genuinely empty data.
     with pytest.raises(RuntimeError, match="Unable to fetch prices"):
         get_prices()
 
 
 @patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused"))
 def test_insert_price_raises_on_connection_failure(mock_get_conn):
-    # Same bug, mutation side - this used to return None silently, which
-    # record_price then stringified into a fake-looking id of "None".
+    # A swallowed failure here would look like a fake id, not an error.
     with pytest.raises(RuntimeError, match="Unable to record price"):
         insert_price(VALID_PRICE, "2026-09-30T00:00:00+00:00")
 
