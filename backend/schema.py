@@ -55,10 +55,8 @@ def _check_write_auth(info: Info) -> None:
 
 
 def _check_forecast_snapshot_write_auth(info: Info) -> None:
-    """Gates recordForecastSnapshot/deleteForecastSnapshot - a separate
-    secret from _check_write_auth's: this one is held by the Vercel-hosted
-    frontend on behalf of site visitors, a different trust boundary from
-    the external Collector bot RECORD_PRICE_SECRET guards."""
+    """Gates forecast-snapshot writes - this secret is held by the
+    Vercel-hosted frontend on behalf of site visitors, not an external bot."""
     expected = os.environ.get("FORECAST_SNAPSHOT_SECRET")
     if not expected:
         raise PermissionError("Writes are not configured.")
