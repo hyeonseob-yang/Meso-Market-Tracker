@@ -156,9 +156,9 @@ def get_latest_prices(limit: int = 2) -> list[PriceRecord]:
 
 
 def get_forecast_training_prices(since: str | None = None) -> list[PriceRecord]:
-    """Same shape as get_prices, but excludes notes = 'manual' (test/backfill
-    entries, not the automated Collector feed). Separate from get_prices,
-    which still shows manual entries on the full displayed chart."""
+    """Excludes notes = 'manual' (test/backfill entries, not the automated
+    Collector feed) - unlike get_prices, which still shows them on the
+    full displayed chart."""
     conditions = ["notes != 'manual'"]
     params: list = []
     if since is not None:
