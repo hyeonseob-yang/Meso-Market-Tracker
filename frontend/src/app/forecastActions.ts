@@ -13,7 +13,6 @@ export type Forecast = {
   historyCount: number;
 };
 // No `history` - reconstructing it on read is expensive and grows over time.
-// predictionsList.tsx derives it client-side from a shared price fetch instead.
 export type ForecastSnapshotSummary = {
   id: number;
   createdAt: string;

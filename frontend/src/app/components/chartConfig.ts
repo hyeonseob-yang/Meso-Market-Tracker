@@ -67,7 +67,6 @@ export function buildChartOptions(spanDays: number) {
   };
 }
 
-// Earliest-to-latest spread across whatever's actually plotted, in days.
 export function computeSpanDays(
   history: PriceRow[],
   forecast: ForecastPoint[] = [],
@@ -78,7 +77,6 @@ export function computeSpanDays(
   return (Math.max(...times) - Math.min(...times)) / (24 * 60 * 60 * 1000);
 }
 
-// Shared by the live chart and the saved-snapshot viewer.
 export function forecastDatasets(
   anchor: PriceRow | null,
   forecast: ForecastPoint[],
