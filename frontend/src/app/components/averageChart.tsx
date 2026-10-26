@@ -67,7 +67,7 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
     };
   }, []);
 
-  const visiblePoints = showForecast ? forecast?.points ?? [] : [];
+  const visiblePoints = showForecast ? (forecast?.points ?? []) : [];
 
   function selectWindow(window: (typeof WINDOWS)[number]) {
     setSelected(window.label);
