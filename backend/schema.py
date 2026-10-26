@@ -129,8 +129,9 @@ class Query:
 
     @strawberry.field
     def forecast(self) -> Forecast | None:
-        """Null before the first scheduled run has ever populated it; see
-        forecasting.compute_forecast and the /internal/trigger scheduled job."""
+        """Null before the first scheduled run has populated it - an hourly
+        EventBridge trigger invokes /internal/trigger, which fits and
+        caches a new forecast via forecasting.compute_forecast."""
         return get_forecast_cache()
 
     @strawberry.field
