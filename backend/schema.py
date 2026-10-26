@@ -44,8 +44,7 @@ def _validate_price(price: PriceInput) -> None:
 
 def _check_write_auth(info: Info) -> None:
     """Gate writes behind a shared secret - recordPrice is otherwise open to
-    anyone who finds the endpoint. Fails closed: if the secret isn't
-    configured at all, writes are refused rather than silently left open."""
+    anyone who finds the endpoint."""
     expected = os.environ.get("RECORD_PRICE_SECRET")
     if not expected:
         raise PermissionError("Writes are not configured.")
