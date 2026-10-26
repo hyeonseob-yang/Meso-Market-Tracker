@@ -20,8 +20,7 @@ export type ForecastSnapshotSummary = {
   points: ForecastPoint[];
 };
 // `history` is added only when a snapshot's chart is opened, derived
-// client-side from a shared price fetch - Forecast and
-// ForecastSnapshotSummary never carry it.
+// client-side from a shared price fetch.
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
