@@ -124,6 +124,7 @@ class Query:
 
     @strawberry.field
     def latest_prices(self, limit: int = 2) -> list[PriceRecord]:
+        """Built for the staleness watchdog."""
         return get_latest_prices(limit)
 
     @strawberry.field
