@@ -129,9 +129,9 @@ class Query:
 
     @strawberry.field
     def forecast(self) -> Forecast | None:
-        """Null before the first scheduled run has populated it. An hourly
-        EventBridge trigger invokes /internal/trigger, which fits and
-        caches a new forecast via forecasting.compute_forecast."""
+        """Null before the first scheduled run has populated it.
+        An hourly EventBridge trigger invokes /internal/trigger, which fits
+        and caches a new forecast via forecasting.compute_forecast."""
         return get_forecast_cache()
 
     @strawberry.field
