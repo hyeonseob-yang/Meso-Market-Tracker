@@ -5,15 +5,12 @@ import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
 
-// No `history` field - the live forecast doesn't need it, and
-// reconstructing it on read is expensive.
 export type Forecast = {
   model: string;
   modelParams: Record<string, unknown> | null;
   points: ForecastPoint[];
   historyCount: number;
 };
-// No `history` - reconstructing it on read is expensive and grows over time.
 export type ForecastSnapshotSummary = {
   id: number;
   createdAt: string;
@@ -22,6 +19,9 @@ export type ForecastSnapshotSummary = {
   historyCount: number;
   points: ForecastPoint[];
 };
+// history is kept out of the summary - reconstructing it on every read is
+// expensive and grows over time. Only added here, for the one snapshot
+// a reader actually opens.
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
