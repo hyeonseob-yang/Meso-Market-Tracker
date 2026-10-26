@@ -1,3 +1,6 @@
+#!/bin/bash
+set -eo pipefail
+
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 REGION=us-east-1
 REGISTRY=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
