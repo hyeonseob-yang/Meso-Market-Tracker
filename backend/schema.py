@@ -36,8 +36,7 @@ def _validate_price(price: PriceInput) -> None:
 
     for field in PRICE_FIELDS:
         value = getattr(price, field)
-        # Only average can legitimately be 0 - it means the rolling trade
-        # window had no completed trades. No other field has that case.
+        # Only average can be 0 - an empty rolling trade window.
         if field == "average" and value == 0:
             continue
         if value <= 0:
