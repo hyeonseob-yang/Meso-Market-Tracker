@@ -5,8 +5,6 @@ import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
 
-// Added only when a snapshot's chart is opened, derived client-side from
-// a shared price fetch - Forecast and ForecastSnapshotSummary never carry it.
 export type Forecast = {
   model: string;
   modelParams: Record<string, unknown> | null;
@@ -21,6 +19,8 @@ export type ForecastSnapshotSummary = {
   historyCount: number;
   points: ForecastPoint[];
 };
+// Added only when a snapshot's chart is opened, derived client-side from
+// a shared price fetch - Forecast and ForecastSnapshotSummary never carry it.
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
