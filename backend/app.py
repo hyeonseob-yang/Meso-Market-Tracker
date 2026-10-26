@@ -22,10 +22,10 @@ app.add_url_rule(
 
 @app.route("/internal/trigger", methods=["POST"])
 def internal_trigger():
-    """Reached two ways: EventBridge invoking this Lambda directly (see
-    infra/), or the public internet via API Gateway's $default route -
-    hence the secret check. Both scheduled triggers share this route since
-    the Lambda Web Adapter only supports one pass-through path per function."""
+    """Reached two ways: EventBridge invoking this Lambda directly, or the
+    public internet via API Gateway's $default route - hence the secret
+    check. Both scheduled triggers share this route since the Lambda Web
+    Adapter only supports one pass-through path per function."""
     expected = os.environ.get("INTERNAL_TRIGGER_SECRET")
     body = request.get_json(silent=True) or {}
     if not expected or body.get("secret") != expected:
