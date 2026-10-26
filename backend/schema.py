@@ -136,7 +136,8 @@ class Query:
     def forecast(self) -> Forecast | None:
         """Reads the precomputed cache - null before the first scheduled
         run has ever populated it. No fitting happens on this request
-        path; that's done by a separate scheduled job."""
+        path; see forecasting.compute_forecast and the /internal/trigger
+        scheduled job."""
         return get_forecast_cache()
 
     @strawberry.field
