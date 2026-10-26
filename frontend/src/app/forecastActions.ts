@@ -5,6 +5,8 @@ import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
 
+// `history` isn't in Forecast or ForecastSnapshotSummary - reconstructing
+// it on every read is expensive and grows over time.
 export type Forecast = {
   model: string;
   modelParams: Record<string, unknown> | null;
@@ -19,8 +21,6 @@ export type ForecastSnapshotSummary = {
   historyCount: number;
   points: ForecastPoint[];
 };
-// `history` isn't in Forecast or ForecastSnapshotSummary - reconstructing
-// it on every read is expensive and grows over time.
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
 const FORECAST_QUERY = `
