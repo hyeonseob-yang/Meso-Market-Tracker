@@ -2,12 +2,7 @@
 if the newest row is too old, again after a longer delay if it's still
 stale, and once when collection resumes after a real gap. Stdlib only - no
 dependencies to package, deployed as a plain zip rather than a container
-image.
-
-Uses `latestPrices(limit: 2)` rather than paging through the full,
-oldest-first `prices` query to find the tail end - cheap regardless of how
-large the table gets.
-"""
+image."""
 
 import json
 import os
