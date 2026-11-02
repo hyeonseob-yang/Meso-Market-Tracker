@@ -1,15 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/client";
 
 const NAV_ITEMS = [
   { text: "Chart", href: "/" },
   { text: "Predictions", href: "/predictions" },
 ];
 
-export default function NavDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function NavDrawer({
+  isOpen,
+  onClose,
+  userEmail,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  userEmail: string | null;
+}) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <>
@@ -43,6 +61,24 @@ export default function NavDrawer({ isOpen, onClose }: { isOpen: boolean; onClos
             </li>
           ))}
         </ul>
+        <div className="mt-auto border-t border-gray-200 p-4">
+          {userEmail ? (
+            <>
+              <p className="truncate text-sm text-gray-600">{userEmail}</p>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="mt-2 text-sm font-medium text-blue-700 hover:underline"
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <Link href="/login" onClick={onClose} className="text-sm font-medium text-blue-700 hover:underline">
+              Log in
+            </Link>
+          )}
+        </div>
       </nav>
     </>
   );

@@ -54,6 +54,7 @@ resource "aws_lambda_function" "backend" {
       RECORD_PRICE_SECRET           = var.record_price_secret
       FORECAST_SNAPSHOT_SECRET      = var.forecast_snapshot_secret
       INTERNAL_TRIGGER_SECRET       = var.internal_trigger_secret
+      SUPABASE_JWT_SECRET           = var.supabase_jwt_secret
       AWS_LWA_PASS_THROUGH_PATH     = "/internal/trigger"
       GRAPHQL_INTROSPECTION_ENABLED = "false"
     }

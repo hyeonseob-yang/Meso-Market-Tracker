@@ -5,6 +5,7 @@ import strawberry
 from strawberry.extensions import DisableIntrospection
 from strawberry.types import Info
 
+from auth import get_current_user
 from database import (
     delete_forecast_snapshot as db_delete_forecast_snapshot,
     get_forecast_cache,
@@ -14,7 +15,7 @@ from database import (
     insert_forecast_snapshot,
     insert_price,
 )
-from models import Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord
+from models import Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord, User
 from strawberry.scalars import JSON
 
 PRICE_FIELDS = ("average", "buy100M", "buy1B", "buy10B", "sell100M", "sell1B", "sell10B")
@@ -93,6 +94,11 @@ class Query:
     @strawberry.field
     def forecast_snapshots(self, limit: int = 50) -> list[ForecastSnapshotRecord]:
         return get_forecast_snapshots(limit)
+
+    @strawberry.field
+    def me(self, info: Info) -> User | None:
+        user = get_current_user(info)
+        return User(**user) if user else None
 
 
 def _check_write_auth(info: Info) -> None:

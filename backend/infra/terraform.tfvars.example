@@ -10,3 +10,6 @@ db_password = "your-db-password"
 
 internal_trigger_secret  = "your-internal-trigger-secret"
 forecast_snapshot_secret = "your-forecast-snapshot-secret"
+
+# Supabase project settings -> API -> JWT Secret
+supabase_jwt_secret = "your-supabase-jwt-secret"

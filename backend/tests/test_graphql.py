@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import jwt
 import pytest
 
 from app import app
@@ -462,3 +463,36 @@ def test_delete_forecast_snapshot_rejects_wrong_secret(mock_delete, client):
     assert body["data"] is None
     assert any("Invalid or missing credentials" in e["message"] for e in body["errors"])
     mock_delete.assert_not_called()
+
+
+ME_QUERY = """
+query { me { id email } }
+"""
+
+TEST_JWT_SECRET = "test-jwt-secret"
+
+
+def _make_token(sub="user-123", email="test@example.com", secret=TEST_JWT_SECRET):
+    return jwt.encode({"sub": sub, "email": email, "aud": "authenticated"}, secret, algorithm="HS256")
+
+
+def test_me_query_returns_null_without_auth_header(client):
+    response = gql(client, ME_QUERY)
+    body = json.loads(response.data)
+    assert body["data"]["me"] is None
+
+
+def test_me_query_returns_user_with_valid_token(client, monkeypatch):
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
+    token = _make_token()
+    response = gql(client, ME_QUERY, headers={"Authorization": f"Bearer {token}"})
+    body = json.loads(response.data)
+    assert body["data"]["me"] == {"id": "user-123", "email": "test@example.com"}
+
+
+def test_me_query_returns_null_for_wrong_secret_token(client, monkeypatch):
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
+    token = _make_token(secret="wrong-secret")
+    response = gql(client, ME_QUERY, headers={"Authorization": f"Bearer {token}"})
+    body = json.loads(response.data)
+    assert body["data"]["me"] is None

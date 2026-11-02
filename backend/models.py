@@ -41,6 +41,12 @@ class Forecast:
 
 
 @strawberry.type
+class User:
+    id: str
+    email: str
+
+
+@strawberry.type
 class ForecastSnapshotRecord:
     id: int
     created_at: str

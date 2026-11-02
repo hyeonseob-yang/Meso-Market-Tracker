@@ -69,3 +69,9 @@ variable "forecast_snapshot_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "supabase_jwt_secret" {
+  description = "Supabase project's JWT secret - used to verify the Authorization bearer token on the me query"
+  type        = string
+  sensitive   = true
+}
