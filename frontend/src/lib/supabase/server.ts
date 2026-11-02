@@ -13,7 +13,7 @@ export async function createClient() {
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
-          // Server Components can't set cookies - fine here, since middleware.ts refreshes the session instead.
+          // Server Components can't set cookies - fine here, since proxy.ts refreshes the session instead.
         }
       },
     },
