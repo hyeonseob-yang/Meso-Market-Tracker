@@ -11,5 +11,6 @@ db_password = "your-db-password"
 internal_trigger_secret  = "your-internal-trigger-secret"
 forecast_snapshot_secret = "your-forecast-snapshot-secret"
 
-# Supabase project settings -> API -> JWT Secret
-supabase_jwt_secret = "your-supabase-jwt-secret"
+# Supabase project URL (same as NEXT_PUBLIC_SUPABASE_URL) - used to fetch its
+# JWKS endpoint for verifying login tokens
+supabase_url = "https://xxxxxxxxxxxxxxxxxxxx.supabase.co"

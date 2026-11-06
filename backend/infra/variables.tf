@@ -70,8 +70,7 @@ variable "forecast_snapshot_secret" {
   sensitive   = true
 }
 
-variable "supabase_jwt_secret" {
-  description = "Supabase project's JWT secret - used to verify the Authorization bearer token on the me query"
+variable "supabase_url" {
+  description = "Supabase project URL - used to fetch its JWKS endpoint to verify the Authorization bearer token on the me query"
   type        = string
-  sensitive   = true
 }

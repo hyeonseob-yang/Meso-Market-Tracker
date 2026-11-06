@@ -1,11 +1,13 @@
 import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
 
+import auth
 from app import app
 from models import PriceRecord
 
@@ -469,11 +471,22 @@ ME_QUERY = """
 query { me { id email } }
 """
 
-TEST_JWT_SECRET = "test-jwt-secret"
+_ME_PRIVATE_KEY = ec.generate_private_key(ec.SECP256R1())
+_ME_OTHER_PRIVATE_KEY = ec.generate_private_key(ec.SECP256R1())
 
 
-def _make_token(sub="user-123", email="test@example.com", secret=TEST_JWT_SECRET):
-    return jwt.encode({"sub": sub, "email": email, "aud": "authenticated"}, secret, algorithm="HS256")
+def _make_token(sub="user-123", email="test@example.com", private_key=_ME_PRIVATE_KEY):
+    return jwt.encode({"sub": sub, "email": email, "aud": "authenticated"}, private_key, algorithm="ES256")
+
+
+@pytest.fixture(autouse=True)
+def _mock_jwks(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://test-project.supabase.co")
+    auth._jwks_client = None
+    fake_client = MagicMock()
+    fake_client.get_signing_key_from_jwt.return_value = SimpleNamespace(key=_ME_PRIVATE_KEY.public_key())
+    with patch("auth._get_jwks_client", return_value=fake_client):
+        yield
 
 
 def test_me_query_returns_null_without_auth_header(client):
@@ -482,17 +495,15 @@ def test_me_query_returns_null_without_auth_header(client):
     assert body["data"]["me"] is None
 
 
-def test_me_query_returns_user_with_valid_token(client, monkeypatch):
-    monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
+def test_me_query_returns_user_with_valid_token(client):
     token = _make_token()
     response = gql(client, ME_QUERY, headers={"Authorization": f"Bearer {token}"})
     body = json.loads(response.data)
     assert body["data"]["me"] == {"id": "user-123", "email": "test@example.com"}
 
 
-def test_me_query_returns_null_for_wrong_secret_token(client, monkeypatch):
-    monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
-    token = _make_token(secret="wrong-secret")
+def test_me_query_returns_null_for_token_signed_by_different_key(client):
+    token = _make_token(private_key=_ME_OTHER_PRIVATE_KEY)
     response = gql(client, ME_QUERY, headers={"Authorization": f"Bearer {token}"})
     body = json.loads(response.data)
     assert body["data"]["me"] is None
