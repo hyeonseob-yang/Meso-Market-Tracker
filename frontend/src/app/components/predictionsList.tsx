@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { format } from "date-fns";
 
 import { fetchPrices } from "../actions";
+import { toUtcDisplayDate } from "../dateDisplay";
 import { deleteForecastSnapshot, listForecastSnapshots, type ForecastSnapshotSummary } from "../forecastActions";
 import type { PriceRow } from "./chartConfig";
 import SnapshotChart from "./snapshotChart";
@@ -76,7 +77,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900">
-                    {format(new Date(snapshot.createdAt), "MMM d, yyyy HH:mm")}
+                    {format(toUtcDisplayDate(snapshot.createdAt), "MMM d, yyyy HH:mm 'UTC'")}
                   </p>
                   <p className="text-sm text-gray-600">
                     {horizonLabel(snapshot)} · {snapshot.historyCount} history points ·{" "}
