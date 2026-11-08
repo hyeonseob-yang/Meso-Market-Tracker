@@ -386,6 +386,25 @@ def test_forecast_snapshots_query_returns_empty_list(mock_get, client):
     assert body["data"]["forecastSnapshots"] == []
 
 
+@patch("schema.get_forecast_snapshots", return_value=[])
+def test_forecast_snapshots_query_passes_no_user_id_when_logged_out(mock_get, client):
+    gql(client, FORECAST_SNAPSHOTS_QUERY)
+    mock_get.assert_called_once_with(50, None)
+
+
+@patch("schema.get_forecast_snapshots", return_value=[])
+def test_forecast_snapshots_query_passes_user_id_when_logged_in(mock_get, client):
+    token = _make_token(sub="user-123")
+    response = client.post(
+        "/price",
+        data=json.dumps({"query": FORECAST_SNAPSHOTS_QUERY, "variables": {}}),
+        content_type="application/json",
+        headers={"x-record-price-secret": TEST_SECRET, "Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    mock_get.assert_called_once_with(50, "user-123")
+
+
 def _gql_snapshot_write(client, query, variables, secret=TEST_SNAPSHOT_SECRET):
     return client.post(
         "/price",

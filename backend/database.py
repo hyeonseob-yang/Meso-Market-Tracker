@@ -282,10 +282,15 @@ def insert_forecast_snapshot(history_count: int, points, model: str, model_param
     return rows[0]
 
 
-def get_forecast_snapshots(limit: int = 50) -> list[ForecastSnapshotRecord]:
-    sql = """
+def get_forecast_snapshots(limit: int = 50, user_id: str | None = None) -> list[ForecastSnapshotRecord]:
+    # Userless (automated) snapshots are visible to everyone; a snapshot with
+    # an owner is visible only to that owner, logged-out visitors see none.
+    where = "user_id IS NULL" if user_id is None else "(user_id IS NULL OR user_id = %s)"
+    params = (limit,) if user_id is None else (user_id, limit)
+    sql = f"""
         SELECT id, created_at, model, model_params, points, history_count, user_id
         FROM forecast_snapshot
+        WHERE {where}
         ORDER BY created_at DESC
         LIMIT %s
     """
@@ -293,7 +298,7 @@ def get_forecast_snapshots(limit: int = 50) -> list[ForecastSnapshotRecord]:
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
-            cur.execute(sql, (limit,))
+            cur.execute(sql, params)
             return [_row_to_forecast_snapshot_record(row) for row in cur.fetchall()]
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("get_forecast_snapshots failed: %s", _sanitize(str(error)))

@@ -95,8 +95,9 @@ class Query:
         return get_forecast_cache()
 
     @strawberry.field
-    def forecast_snapshots(self, limit: int = 50) -> list[ForecastSnapshotRecord]:
-        return get_forecast_snapshots(limit)
+    def forecast_snapshots(self, info: Info, limit: int = 50) -> list[ForecastSnapshotRecord]:
+        user = get_current_user(info)
+        return get_forecast_snapshots(limit, user["id"] if user else None)
 
     @strawberry.field
     def me(self, info: Info) -> User | None:

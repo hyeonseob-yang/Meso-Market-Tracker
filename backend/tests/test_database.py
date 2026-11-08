@@ -361,6 +361,33 @@ def test_get_forecast_snapshots_orders_by_created_at_desc_with_limit():
     assert params == (50,)
 
 
+def test_get_forecast_snapshots_shows_only_userless_rows_when_logged_out():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = []
+
+    with patch("database._get_conn", return_value=conn):
+        get_forecast_snapshots(limit=50, user_id=None)
+
+    sql, params = cur.execute.call_args[0]
+    assert "user_id IS NULL" in sql
+    assert "user_id = %s" not in sql
+    assert params == (50,)
+
+
+def test_get_forecast_snapshots_shows_userless_and_own_rows_when_logged_in():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = []
+
+    with patch("database._get_conn", return_value=conn):
+        get_forecast_snapshots(limit=50, user_id="user-123")
+
+    sql, params = cur.execute.call_args[0]
+    assert "user_id IS NULL OR user_id = %s" in sql
+    assert params == ("user-123", 50)
+
+
 def test_get_forecast_snapshots_raises_on_connection_failure():
     with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
         with pytest.raises(RuntimeError, match="Unable to fetch forecast snapshots"):
