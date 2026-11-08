@@ -1,6 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(),
+}));
+
+import { createClient } from "@/lib/supabase/server";
 import { deleteForecastSnapshot, fetchForecast, listForecastSnapshots, saveForecastSnapshot } from "./forecastActions";
+
+function mockSupabaseSession(accessToken: string | null) {
+  (createClient as ReturnType<typeof vi.fn>).mockResolvedValue({
+    auth: {
+      getSession: () =>
+        Promise.resolve({ data: { session: accessToken ? { access_token: accessToken } : null } }),
+    },
+  });
+}
 
 describe("fetchForecast", () => {
   afterEach(() => {
@@ -98,6 +112,7 @@ describe("saveForecastSnapshot", () => {
   });
 
   it("attaches the forecast-snapshot secret header", async () => {
+    mockSupabaseSession(null);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -111,7 +126,36 @@ describe("saveForecastSnapshot", () => {
     expect(fetchMock.mock.calls[0][1].headers["x-forecast-snapshot-secret"]).toBe("test-secret");
   });
 
+  it("attaches the Authorization header when a session exists, so the backend can attribute the snapshot to a user", async () => {
+    mockSupabaseSession("test-token");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: { recordForecastSnapshot: { id: 1 } } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveForecastSnapshot(0, [], "AutoETS", null);
+
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer test-token");
+  });
+
+  it("omits the Authorization header when there is no session", async () => {
+    mockSupabaseSession(null);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: { recordForecastSnapshot: { id: 1 } } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveForecastSnapshot(0, [], "AutoETS", null);
+
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
+  });
+
   it("returns null when the backend responds with an HTTP error", async () => {
+    mockSupabaseSession(null);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({

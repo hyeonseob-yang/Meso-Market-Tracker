@@ -1,6 +1,7 @@
 "use server";
 
 import { logError } from "@/lib/cloudwatch";
+import { createClient } from "@/lib/supabase/server";
 import type { ForecastPoint, PriceRow } from "./components/chartConfig";
 
 const FORECAST_SNAPSHOT_SECRET_HEADER = "x-forecast-snapshot-secret";
@@ -18,6 +19,7 @@ export type ForecastSnapshotSummary = {
   modelParams: Record<string, unknown> | null;
   historyCount: number;
   points: ForecastPoint[];
+  userId: string | null;
 };
 // `history` is added only when a snapshot's chart is opened, derived
 // client-side from a shared price fetch.
@@ -30,7 +32,7 @@ const FORECAST_QUERY = `
 const FORECAST_SNAPSHOTS_QUERY = `
   query ForecastSnapshots($limit: Int) {
     forecastSnapshots(limit: $limit) {
-      id createdAt model modelParams historyCount points
+      id createdAt model modelParams historyCount points userId
     }
   }
 `;
@@ -38,7 +40,7 @@ const FORECAST_SNAPSHOTS_QUERY = `
 const RECORD_FORECAST_SNAPSHOT_MUTATION = `
   mutation RecordForecastSnapshot($historyCount: Int!, $points: JSON!, $model: String!, $modelParams: JSON) {
     recordForecastSnapshot(historyCount: $historyCount, points: $points, model: $model, modelParams: $modelParams) {
-      id createdAt model modelParams historyCount points
+      id createdAt model modelParams historyCount points userId
     }
   }
 `;
@@ -101,12 +103,22 @@ export async function saveForecastSnapshot(
   model: string,
   modelParams: Record<string, unknown> | null,
 ): Promise<ForecastSnapshotSummary | null> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    [FORECAST_SNAPSHOT_SECRET_HEADER]: process.env.FORECAST_SNAPSHOT_SECRET ?? "",
+  };
+  if (session?.access_token) {
+    headers["Authorization"] = `Bearer ${session.access_token}`;
+  }
+
   const response = await fetch(`${process.env.BACKEND_URL}/price`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      [FORECAST_SNAPSHOT_SECRET_HEADER]: process.env.FORECAST_SNAPSHOT_SECRET ?? "",
-    },
+    headers,
     body: JSON.stringify({
       query: RECORD_FORECAST_SNAPSHOT_MUTATION,
       variables: { historyCount, points, model, modelParams },

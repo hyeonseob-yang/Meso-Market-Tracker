@@ -16,6 +16,7 @@ function snapshot(overrides: Partial<ForecastSnapshotSummary> = {}): ForecastSna
     model: "AutoETS",
     modelParams: null,
     historyCount: 3,
+    userId: null,
     points: [
       { datetime: "2026-10-13T00:00:00Z", predicted: 100, lower: 90, upper: 110 },
       { datetime: "2026-10-15T00:00:00Z", predicted: 104, lower: 94, upper: 114 },

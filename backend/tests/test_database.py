@@ -299,11 +299,24 @@ def test_insert_forecast_snapshot_wraps_jsonb_columns():
         insert_forecast_snapshot(240, [{"datetime": "y"}], "AutoETS", {"sp": 24})
 
     _, params = cur.execute.call_args[0]
-    model, model_params, points, history_count = params
+    model, model_params, points, history_count, user_id = params
     assert model == "AutoETS"
     assert isinstance(model_params, Json)
     assert isinstance(points, Json)
     assert history_count == 240
+    assert user_id is None
+
+
+def test_insert_forecast_snapshot_passes_user_id_through():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchone.return_value = (1,)
+
+    with patch("database._get_conn", return_value=conn):
+        insert_forecast_snapshot(240, [], "AutoETS", None, user_id="user-123")
+
+    _, params = cur.execute.call_args[0]
+    assert params[4] == "user-123"
 
 
 def test_insert_forecast_snapshot_raises_if_insert_returns_no_row():

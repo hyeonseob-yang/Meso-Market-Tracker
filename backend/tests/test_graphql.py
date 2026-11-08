@@ -405,6 +405,27 @@ def test_record_forecast_snapshot_returns_record(mock_insert, client):
 
 
 @patch("schema.insert_forecast_snapshot", return_value=1)
+def test_record_forecast_snapshot_has_no_user_id_when_logged_out(mock_insert, client):
+    vars = {"historyCount": 240, "points": [], "model": "AutoETS"}
+    _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
+    assert mock_insert.call_args[0][4] is None
+
+
+@patch("schema.insert_forecast_snapshot", return_value=1)
+def test_record_forecast_snapshot_captures_user_id_when_logged_in(mock_insert, client):
+    token = _make_token(sub="user-123")
+    vars = {"historyCount": 240, "points": [], "model": "AutoETS"}
+    response = client.post(
+        "/price",
+        data=json.dumps({"query": RECORD_FORECAST_SNAPSHOT_MUTATION, "variables": vars}),
+        content_type="application/json",
+        headers={"x-forecast-snapshot-secret": TEST_SNAPSHOT_SECRET, "Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert mock_insert.call_args[0][4] == "user-123"
+
+
+@patch("schema.insert_forecast_snapshot", return_value=1)
 def test_record_forecast_snapshot_rejects_missing_secret(mock_insert, client):
     vars = {"historyCount": 0, "points": [], "model": "AutoETS"}
     response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars, secret="")

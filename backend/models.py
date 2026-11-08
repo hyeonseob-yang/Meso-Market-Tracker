@@ -54,3 +54,4 @@ class ForecastSnapshotRecord:
     model_params: JSON | None
     points: JSON
     history_count: int
+    user_id: str | None  # null for the automated daily archive - set only when a logged-in visitor saved it manually

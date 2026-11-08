@@ -246,16 +246,22 @@ def get_forecast_cache() -> Forecast | None:
     return Forecast(model=row[0], model_params=row[1], points=row[2], history_count=row[3], updated_at=str(row[4]))
 
 
-def insert_forecast_snapshot(history_count: int, points, model: str, model_params) -> int:
-    sql = """INSERT INTO forecast_snapshot(model, model_params, points, history_count)
-             VALUES(%s, %s, %s, %s) RETURNING id"""
+def insert_forecast_snapshot(history_count: int, points, model: str, model_params, user_id: str | None = None) -> int:
+    sql = """INSERT INTO forecast_snapshot(model, model_params, points, history_count, user_id)
+             VALUES(%s, %s, %s, %s, %s) RETURNING id"""
 
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(
                 sql,
-                (model, Json(model_params) if model_params is not None else None, Json(points), history_count),
+                (
+                    model,
+                    Json(model_params) if model_params is not None else None,
+                    Json(points),
+                    history_count,
+                    user_id,
+                ),
             )
             rows = cur.fetchone()
             conn.commit()
@@ -278,7 +284,7 @@ def insert_forecast_snapshot(history_count: int, points, model: str, model_param
 
 def get_forecast_snapshots(limit: int = 50) -> list[ForecastSnapshotRecord]:
     sql = """
-        SELECT id, created_at, model, model_params, points, history_count
+        SELECT id, created_at, model, model_params, points, history_count, user_id
         FROM forecast_snapshot
         ORDER BY created_at DESC
         LIMIT %s
@@ -302,6 +308,7 @@ def _row_to_forecast_snapshot_record(row) -> ForecastSnapshotRecord:
         model_params=row[3],
         points=row[4],
         history_count=row[5],
+        user_id=str(row[6]) if row[6] is not None else None,
     )
 
 
