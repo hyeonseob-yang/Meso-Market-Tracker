@@ -74,3 +74,9 @@ variable "supabase_url" {
   description = "Supabase project URL - used to fetch its JWKS endpoint to verify the Authorization bearer token on the me query"
   type        = string
 }
+
+variable "watchdog_secret" {
+  description = "Shared secret required (x-watchdog-secret header) to call /internal/alert-subscriptions - held by both the main backend Lambda and the watchdog Lambda"
+  type        = string
+  sensitive   = true
+}

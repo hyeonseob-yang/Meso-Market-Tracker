@@ -46,8 +46,10 @@ resource "aws_lambda_function" "watchdog" {
   environment {
     variables = {
       # Same API this project's own frontend calls - no separate URL to keep in sync.
-      TRACKER_API_URL     = "${aws_apigatewayv2_stage.default.invoke_url}/price"
-      DISCORD_WEBHOOK_URL = var.discord_webhook_url
+      TRACKER_API_URL         = "${aws_apigatewayv2_stage.default.invoke_url}/price"
+      DISCORD_WEBHOOK_URL     = var.discord_webhook_url
+      ALERT_SUBSCRIPTIONS_URL = "${aws_apigatewayv2_stage.default.invoke_url}/internal/alert-subscriptions"
+      WATCHDOG_SECRET         = var.watchdog_secret
     }
   }
 

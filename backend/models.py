@@ -47,6 +47,15 @@ class User:
 
 
 @strawberry.type
+class AlertSubscription:
+    id: int
+    webhook_url: str
+    name: str
+    high: float | None
+    low: float | None
+
+
+@strawberry.type
 class ForecastSnapshotRecord:
     id: int
     created_at: str

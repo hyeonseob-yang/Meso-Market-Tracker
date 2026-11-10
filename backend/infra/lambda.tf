@@ -55,6 +55,7 @@ resource "aws_lambda_function" "backend" {
       FORECAST_SNAPSHOT_SECRET      = var.forecast_snapshot_secret
       INTERNAL_TRIGGER_SECRET       = var.internal_trigger_secret
       SUPABASE_URL                  = var.supabase_url
+      WATCHDOG_SECRET               = var.watchdog_secret
       AWS_LWA_PASS_THROUGH_PATH     = "/internal/trigger"
       GRAPHQL_INTROSPECTION_ENABLED = "false"
     }

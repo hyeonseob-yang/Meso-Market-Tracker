@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 const NAV_ITEMS = [
   { text: "Chart", href: "/" },
   { text: "Predictions", href: "/predictions" },
+  { text: "Alerts", href: "/alerts" },
 ];
 
 export default function NavDrawer({

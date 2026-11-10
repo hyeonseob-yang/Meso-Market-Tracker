@@ -7,15 +7,18 @@ from unittest.mock import patch
 # before importing it.
 os.environ.setdefault("TRACKER_API_URL", "https://example.com/price")
 os.environ.setdefault("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/test")
+os.environ.setdefault("ALERT_SUBSCRIPTIONS_URL", "https://example.com/internal/alert-subscriptions")
+os.environ.setdefault("WATCHDOG_SECRET", "test-watchdog-secret")
 
 import handler  # noqa: E402
 
 
 def _rows(*ages_minutes):
     """Newest-first rows (matching the real latestPrices(limit: 2) query),
-    one per given age in minutes."""
+    one per given age in minutes. average is a fixed placeholder - these
+    tests are about staleness, not breakpoints (see _run_breakpoints)."""
     now = datetime.now(timezone.utc)
-    return [{"datetime": (now - timedelta(minutes=m)).isoformat()} for m in ages_minutes]
+    return [{"datetime": (now - timedelta(minutes=m)).isoformat(), "average": 400} for m in ages_minutes]
 
 
 def _forecast(age_minutes):
@@ -58,7 +61,9 @@ def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60):
         notifications.append(json.loads(body)["content"])
         return b"{}"
 
-    with patch("handler._post", side_effect=fake_post):
+    # No subscriptions by default - this file's existing tests are about the
+    # staleness checks, not breakpoint alerts (see _run_breakpoints for those).
+    with patch("handler._post", side_effect=fake_post), patch("handler._get", return_value=b"[]"):
         handler.handler({}, None)
 
     return notifications
@@ -168,3 +173,82 @@ def test_missing_snapshot_notifies():
     notifications = _run(_rows(30, 90), snapshot_age_minutes=None)
     assert len(notifications) == 1
     assert "no forecast snapshot has ever been archived" in notifications[0]
+
+
+def _price_rows(*averages):
+    """Newest-first latestPrices(limit: 2)-shaped rows, average only -
+    datetime isn't used by _check_breakpoints."""
+    return [{"average": a} for a in averages]
+
+
+def _run_breakpoints(rows, subscriptions):
+    notifications = []  # list of (webhook_url, text)
+
+    def fake_post(url, body):
+        notifications.append((url, json.loads(body)["content"]))
+        return b"{}"
+
+    with patch("handler._post", side_effect=fake_post):
+        handler._check_breakpoints({"latestPrices": rows}, subscriptions)
+
+    return notifications
+
+
+def test_no_subscriptions_sends_no_notification():
+    assert _run_breakpoints(_price_rows(600, 400), []) == []
+
+
+def test_crossing_above_high_notifies_that_subscription():
+    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "High alert", "high": 500, "low": None}
+    notifications = _run_breakpoints(_price_rows(600, 400), [sub])
+    assert len(notifications) == 1
+    assert notifications[0][0] == sub["webhook_url"]
+    assert "above" in notifications[0][1]
+
+
+def test_still_above_high_does_not_renotify():
+    # Both latest and previous are already past the threshold - not a new crossing.
+    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "High alert", "high": 500, "low": None}
+    assert _run_breakpoints(_price_rows(600, 550), [sub]) == []
+
+
+def test_crossing_below_low_notifies():
+    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Low alert", "high": None, "low": 300}
+    notifications = _run_breakpoints(_price_rows(200, 400), [sub])
+    assert len(notifications) == 1
+    assert "below" in notifications[0][1]
+
+
+def test_only_the_crossing_subscription_is_notified():
+    crossing = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Crossing", "high": 500, "low": None}
+    not_crossing = {
+        "webhook_url": "https://discord.com/api/webhooks/2/b",
+        "name": "Not crossing",
+        "high": 1000,
+        "low": None,
+    }
+    notifications = _run_breakpoints(_price_rows(600, 400), [crossing, not_crossing])
+    assert len(notifications) == 1
+    assert notifications[0][0] == crossing["webhook_url"]
+
+
+def test_null_average_does_not_crash_or_notify():
+    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Test", "high": 500, "low": None}
+    assert _run_breakpoints([{"average": None}], [sub]) == []
+
+
+def test_no_previous_reading_still_notifies():
+    # First-ever reading - no prior data to suppress against.
+    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Test", "high": 500, "low": None}
+    notifications = _run_breakpoints(_price_rows(600), [sub])
+    assert len(notifications) == 1
+
+
+def test_two_different_users_sharing_one_webhook_evaluated_independently():
+    shared_url = "https://discord.com/api/webhooks/1/a"
+    high_sub = {"webhook_url": shared_url, "name": "User A's high alert", "high": 500, "low": None}
+    low_sub = {"webhook_url": shared_url, "name": "User B's low alert", "high": None, "low": 300}
+    # Crosses high (600 > 500) but not low (600 is not < 300) - only the high one should fire.
+    notifications = _run_breakpoints(_price_rows(600, 400), [high_sub, low_sub])
+    assert len(notifications) == 1
+    assert "User A's high alert" in notifications[0][1]

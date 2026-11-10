@@ -1,9 +1,9 @@
 import os
 
-from flask import Flask, request
+from flask import Flask, jsonify, request
 from strawberry.flask.views import GraphQLView
 
-from database import get_forecast_cache, insert_forecast_snapshot, upsert_forecast_cache
+from database import get_alert_subscriptions, get_forecast_cache, insert_forecast_snapshot, upsert_forecast_cache
 from schema import schema
 
 app = Flask(__name__)
@@ -48,3 +48,14 @@ def internal_trigger():
     else:
         return "", 400
     return "", 200
+
+
+@app.route("/internal/alert-subscriptions", methods=["GET"])
+def internal_alert_subscriptions():
+    """Separate route/secret from /internal/trigger - that one is EventBridge
+    invoking this Lambda directly; this one is a different Lambda (the
+    watchdog) calling in over the internet, a different trust boundary."""
+    expected = os.environ.get("WATCHDOG_SECRET")
+    if not expected or request.headers.get("x-watchdog-secret") != expected:
+        return "", 403
+    return jsonify(get_alert_subscriptions())

@@ -2,10 +2,11 @@ import logging
 import os
 import re
 import psycopg2
+import psycopg2.errors
 from psycopg2.extras import Json
 from dotenv import load_dotenv
 
-from models import Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord
+from models import AlertSubscription, Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord
 
 logger = logging.getLogger(__name__)
 
@@ -331,3 +332,126 @@ def delete_forecast_snapshot(id: int) -> bool:
         raise RuntimeError("Unable to delete forecast snapshot right now.") from error
 
     return deleted
+
+
+_DISCORD_WEBHOOK_PATTERN = re.compile(r"^https://discord(app)?\.com/api/webhooks/")
+
+
+def _validate_webhook_url(url: str) -> None:
+    if not _DISCORD_WEBHOOK_PATTERN.match(url):
+        raise ValueError("That doesn't look like a Discord webhook URL.")
+
+
+def create_alert_subscription(
+    user_id: str, webhook_url: str, name: str, high: float | None, low: float | None
+) -> AlertSubscription:
+    _validate_webhook_url(webhook_url)
+    sql = """INSERT INTO alert_subscription(user_id, webhook_url, name, high, low)
+             VALUES(%s, %s, %s, %s, %s) RETURNING id, webhook_url, name, high, low"""
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (user_id, webhook_url, name, high, low))
+            row = cur.fetchone()
+            conn.commit()
+    except psycopg2.errors.UniqueViolation as error:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.error("create_alert_subscription rejected a duplicate webhook: %s", _sanitize(str(error)))
+        raise ValueError("You already have an alert on that webhook - edit it instead.") from error
+    except (psycopg2.DataError, psycopg2.IntegrityError) as error:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.error("create_alert_subscription rejected invalid data: %s", _sanitize(str(error)))
+        raise ValueError("Alert subscription data is invalid.") from error
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("create_alert_subscription failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to create the alert subscription right now.") from error
+
+    if not row:
+        raise RuntimeError("Unable to create the alert subscription right now.")
+
+    return _row_to_alert_subscription(row)
+
+
+def _row_to_alert_subscription(row) -> AlertSubscription:
+    return AlertSubscription(id=row[0], webhook_url=row[1], name=row[2], high=row[3], low=row[4])
+
+
+def update_alert_subscription(
+    user_id: str, id: int, name: str, high: float | None, low: float | None
+) -> AlertSubscription | None:
+    sql = """UPDATE alert_subscription SET name = %s, high = %s, low = %s
+             WHERE id = %s AND user_id = %s
+             RETURNING id, webhook_url, name, high, low"""
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (name, high, low, id, user_id))
+            row = cur.fetchone()
+            conn.commit()
+    except (psycopg2.DataError, psycopg2.IntegrityError) as error:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.error("update_alert_subscription rejected invalid data: %s", _sanitize(str(error)))
+        raise ValueError("Alert subscription data is invalid.") from error
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("update_alert_subscription failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to update the alert subscription right now.") from error
+
+    return _row_to_alert_subscription(row) if row else None
+
+
+def delete_alert_subscription(user_id: str, id: int) -> bool:
+    sql = "DELETE FROM alert_subscription WHERE id = %s AND user_id = %s"
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (id, user_id))
+            deleted = cur.rowcount > 0
+            conn.commit()
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("delete_alert_subscription failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to delete the alert subscription right now.") from error
+
+    return deleted
+
+
+def get_alert_subscriptions_for_user(user_id: str) -> list[AlertSubscription]:
+    sql = """SELECT id, webhook_url, name, high, low FROM alert_subscription
+             WHERE user_id = %s ORDER BY created_at DESC"""
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (user_id,))
+            return [_row_to_alert_subscription(row) for row in cur.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("get_alert_subscriptions_for_user failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to fetch alert subscriptions right now.") from error
+
+
+def get_alert_subscriptions() -> list[dict]:
+    # No user filter and plain dicts, not AlertSubscription - this is for the
+    # watchdog Lambda (see infra/watchdog/), which needs every subscription
+    # regardless of owner to actually send alerts. Never exposed via schema.py.
+    sql = "SELECT webhook_url, name, high, low FROM alert_subscription"
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            columns = ("webhook_url", "name", "high", "low")
+            return [dict(zip(columns, row)) for row in cur.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("get_alert_subscriptions failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to fetch alert subscriptions right now.") from error

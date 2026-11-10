@@ -14,3 +14,7 @@ forecast_snapshot_secret = "your-forecast-snapshot-secret"
 # Supabase project URL (same as NEXT_PUBLIC_SUPABASE_URL) - used to fetch its
 # JWKS endpoint for verifying login tokens
 supabase_url = "https://xxxxxxxxxxxxxxxxxxxx.supabase.co"
+
+# Shared between the main backend Lambda and the watchdog Lambda, gating
+# /internal/alert-subscriptions
+watchdog_secret = "your-watchdog-secret"

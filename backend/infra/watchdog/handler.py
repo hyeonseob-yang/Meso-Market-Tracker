@@ -1,8 +1,8 @@
-"""Hourly staleness check for the price Tracker. Posts to a Discord webhook
-if the newest row is too old, again after a longer delay if it's still
-stale, and once when collection resumes after a real gap. Stdlib only - no
-dependencies to package, deployed as a plain zip rather than a container
-image."""
+"""Hourly staleness check for the price Tracker, plus per-user price
+breakpoint alerts. Posts to a Discord webhook if the newest row is too old,
+again after a longer delay if it's still stale, and once when collection
+resumes after a real gap. Stdlib only - no dependencies to package, deployed
+as a plain zip rather than a container image."""
 
 import json
 import os
@@ -12,8 +12,10 @@ from datetime import datetime, timezone
 
 API_URL = os.environ["TRACKER_API_URL"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
+ALERT_SUBSCRIPTIONS_URL = os.environ["ALERT_SUBSCRIPTIONS_URL"]
+WATCHDOG_SECRET = os.environ["WATCHDOG_SECRET"]
 QUERY = (
-    '{"query": "{ latestPrices(limit: 2) { datetime } forecast { updatedAt } '
+    '{"query": "{ latestPrices(limit: 2) { datetime average } forecast { updatedAt } '
     'forecastSnapshots(limit: 1) { createdAt } }"}'
 )
 
@@ -28,8 +30,18 @@ def _post(url: str, body: str) -> bytes:
         return response.read()
 
 
+def _get(url: str, headers: dict) -> bytes:
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return response.read()
+
+
 def _notify(text: str) -> None:
     _post(WEBHOOK_URL, json.dumps({"content": text}))
+
+
+def _notify_webhook(url: str, text: str) -> None:
+    _post(url, json.dumps({"content": text}))
 
 
 def _check_prices(data: dict) -> None:
@@ -98,6 +110,26 @@ def _check_snapshot(data: dict) -> None:
         _notify(f"Meso Market: still no forecast snapshot archived after {age / 60:.0f} hours.")
 
 
+def _check_breakpoints(data: dict, subscriptions: list[dict]) -> None:
+    rows = data["latestPrices"]
+    if not rows or rows[0]["average"] is None:
+        return
+
+    latest = rows[0]["average"]
+    previous = rows[1]["average"] if len(rows) > 1 else None
+
+    for sub in subscriptions:
+        high, low = sub["high"], sub["low"]
+        if high is not None and latest > high and not (previous is not None and previous > high):
+            _notify_webhook(
+                sub["webhook_url"], f"Meso Market alert '{sub['name']}': average crossed above {high} (now {latest})."
+            )
+        if low is not None and latest < low and not (previous is not None and previous < low):
+            _notify_webhook(
+                sub["webhook_url"], f"Meso Market alert '{sub['name']}': average crossed below {low} (now {latest})."
+            )
+
+
 def handler(event, context):
     try:
         data = json.loads(_post(API_URL, QUERY))["data"]
@@ -108,3 +140,11 @@ def handler(event, context):
     _check_prices(data)
     _check_forecast(data)
     _check_snapshot(data)
+
+    try:
+        subscriptions = json.loads(_get(ALERT_SUBSCRIPTIONS_URL, {"x-watchdog-secret": WATCHDOG_SECRET}))
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        _notify(f"Meso Market: watchdog couldn't reach the alert-subscriptions endpoint: {error}")
+        return
+
+    _check_breakpoints(data, subscriptions)

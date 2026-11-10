@@ -7,15 +7,19 @@ from strawberry.types import Info
 
 from auth import get_current_user
 from database import (
+    create_alert_subscription as db_create_alert_subscription,
+    delete_alert_subscription as db_delete_alert_subscription,
     delete_forecast_snapshot as db_delete_forecast_snapshot,
+    get_alert_subscriptions_for_user,
     get_forecast_cache,
     get_forecast_snapshots,
     get_latest_prices,
     get_prices,
     insert_forecast_snapshot,
     insert_price,
+    update_alert_subscription as db_update_alert_subscription,
 )
-from models import Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord, User
+from models import AlertSubscription, Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord, User
 from strawberry.scalars import JSON
 
 PRICE_FIELDS = ("average", "buy100M", "buy1B", "buy10B", "sell100M", "sell1B", "sell10B")
@@ -67,6 +71,28 @@ class Mutation:
         _check_forecast_snapshot_write_auth(info)
         return db_delete_forecast_snapshot(id)
 
+    @strawberry.mutation
+    def create_alert_subscription(
+        self, info: Info, webhook_url: str, name: str, high: float | None = None, low: float | None = None
+    ) -> AlertSubscription:
+        user = _require_user(info)
+        return db_create_alert_subscription(user["id"], webhook_url, name, high, low)
+
+    @strawberry.mutation
+    def update_alert_subscription(
+        self, info: Info, id: int, name: str, high: float | None = None, low: float | None = None
+    ) -> AlertSubscription:
+        user = _require_user(info)
+        subscription = db_update_alert_subscription(user["id"], id, name, high, low)
+        if subscription is None:
+            raise ValueError("No alert subscription with that id.")
+        return subscription
+
+    @strawberry.mutation
+    def delete_alert_subscription(self, info: Info, id: int) -> bool:
+        user = _require_user(info)
+        return db_delete_alert_subscription(user["id"], id)
+
 
 @strawberry.type
 class Query:
@@ -104,6 +130,11 @@ class Query:
         user = get_current_user(info)
         return User(**user) if user else None
 
+    @strawberry.field
+    def my_alert_subscriptions(self, info: Info) -> list[AlertSubscription]:
+        user = _require_user(info)
+        return get_alert_subscriptions_for_user(user["id"])
+
 
 def _check_write_auth(info: Info) -> None:
     """Gate writes behind a shared secret - recordPrice is otherwise open to
@@ -136,6 +167,13 @@ def _parse_datetime_arg(name: str, value: str | None) -> None:
         datetime.fromisoformat(value)
     except ValueError:
         raise ValueError(f"Invalid {name}: '{value}'. Expected ISO 8601 format.")
+
+
+def _require_user(info: Info) -> dict:
+    user = get_current_user(info)
+    if user is None:
+        raise PermissionError("You must be logged in.")
+    return user
 
 
 def _check_forecast_snapshot_write_auth(info: Info) -> None:

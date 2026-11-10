@@ -547,3 +547,126 @@ def test_me_query_returns_null_for_token_signed_by_different_key(client):
     response = gql(client, ME_QUERY, headers={"Authorization": f"Bearer {token}"})
     body = json.loads(response.data)
     assert body["data"]["me"] is None
+
+
+MY_ALERT_SUBSCRIPTIONS_QUERY = """
+query { myAlertSubscriptions { id webhookUrl name high low } }
+"""
+
+CREATE_ALERT_SUBSCRIPTION_MUTATION = """
+mutation Create($webhookUrl: String!, $name: String!, $high: Float, $low: Float) {
+  createAlertSubscription(webhookUrl: $webhookUrl, name: $name, high: $high, low: $low) {
+    id webhookUrl name high low
+  }
+}
+"""
+
+UPDATE_ALERT_SUBSCRIPTION_MUTATION = """
+mutation Update($id: Int!, $name: String!, $high: Float, $low: Float) {
+  updateAlertSubscription(id: $id, name: $name, high: $high, low: $low) {
+    id webhookUrl name high low
+  }
+}
+"""
+
+DELETE_ALERT_SUBSCRIPTION_MUTATION = """
+mutation Delete($id: Int!) {
+  deleteAlertSubscription(id: $id)
+}
+"""
+
+SAMPLE_ALERT_SUBSCRIPTION = SimpleNamespace(
+    id=1, webhook_url="https://discord.com/api/webhooks/123/abc", name="Test", high=500.0, low=None
+)
+
+
+def _gql_as_user(client, query, variables, sub="user-123"):
+    token = _make_token(sub=sub)
+    return client.post(
+        "/price",
+        data=json.dumps({"query": query, "variables": variables}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+
+def test_my_alert_subscriptions_rejects_without_auth_header(client):
+    response = gql(client, MY_ALERT_SUBSCRIPTIONS_QUERY)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("logged in" in e["message"] for e in body["errors"])
+
+
+@patch("schema.get_alert_subscriptions_for_user", return_value=[SAMPLE_ALERT_SUBSCRIPTION])
+def test_my_alert_subscriptions_returns_own_subscriptions(mock_get, client):
+    response = _gql_as_user(client, MY_ALERT_SUBSCRIPTIONS_QUERY, {})
+    body = json.loads(response.data)
+    assert body["data"]["myAlertSubscriptions"][0]["name"] == "Test"
+    mock_get.assert_called_once_with("user-123")
+
+
+@patch("schema.db_create_alert_subscription", return_value=SAMPLE_ALERT_SUBSCRIPTION)
+def test_create_alert_subscription_rejects_without_auth_header(mock_create, client):
+    vars = {"webhookUrl": "https://discord.com/api/webhooks/123/abc", "name": "Test"}
+    response = gql(client, CREATE_ALERT_SUBSCRIPTION_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("logged in" in e["message"] for e in body["errors"])
+    mock_create.assert_not_called()
+
+
+@patch("schema.db_create_alert_subscription", return_value=SAMPLE_ALERT_SUBSCRIPTION)
+def test_create_alert_subscription_scopes_to_the_logged_in_user(mock_create, client):
+    vars = {"webhookUrl": "https://discord.com/api/webhooks/123/abc", "name": "Test"}
+    _gql_as_user(client, CREATE_ALERT_SUBSCRIPTION_MUTATION, vars, sub="user-456")
+    mock_create.assert_called_once_with("user-456", vars["webhookUrl"], "Test", None, None)
+
+
+@patch("schema.db_create_alert_subscription", side_effect=ValueError("You already have an alert on that webhook - edit it instead."))
+def test_create_alert_subscription_surfaces_duplicate_webhook_error(mock_create, client):
+    vars = {"webhookUrl": "https://discord.com/api/webhooks/123/abc", "name": "Test"}
+    response = _gql_as_user(client, CREATE_ALERT_SUBSCRIPTION_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("already have an alert" in e["message"] for e in body["errors"])
+
+
+@patch("schema.db_update_alert_subscription", return_value=SAMPLE_ALERT_SUBSCRIPTION)
+def test_update_alert_subscription_rejects_without_auth_header(mock_update, client):
+    vars = {"id": 1, "name": "Test"}
+    response = gql(client, UPDATE_ALERT_SUBSCRIPTION_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("logged in" in e["message"] for e in body["errors"])
+    mock_update.assert_not_called()
+
+
+@patch("schema.db_update_alert_subscription", return_value=None)
+def test_update_alert_subscription_raises_when_not_found_or_not_yours(mock_update, client):
+    vars = {"id": 999, "name": "Test"}
+    response = _gql_as_user(client, UPDATE_ALERT_SUBSCRIPTION_MUTATION, vars)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("No alert subscription" in e["message"] for e in body["errors"])
+
+
+@patch("schema.db_update_alert_subscription", return_value=SAMPLE_ALERT_SUBSCRIPTION)
+def test_update_alert_subscription_scopes_to_the_logged_in_user(mock_update, client):
+    vars = {"id": 1, "name": "Test", "high": 500.0}
+    _gql_as_user(client, UPDATE_ALERT_SUBSCRIPTION_MUTATION, vars, sub="user-456")
+    mock_update.assert_called_once_with("user-456", 1, "Test", 500.0, None)
+
+
+@patch("schema.db_delete_alert_subscription", return_value=True)
+def test_delete_alert_subscription_rejects_without_auth_header(mock_delete, client):
+    response = gql(client, DELETE_ALERT_SUBSCRIPTION_MUTATION, {"id": 1})
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("logged in" in e["message"] for e in body["errors"])
+    mock_delete.assert_not_called()
+
+
+@patch("schema.db_delete_alert_subscription", return_value=True)
+def test_delete_alert_subscription_scopes_to_the_logged_in_user(mock_delete, client):
+    _gql_as_user(client, DELETE_ALERT_SUBSCRIPTION_MUTATION, {"id": 1}, sub="user-456")
+    mock_delete.assert_called_once_with("user-456", 1)
