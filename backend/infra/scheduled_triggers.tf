@@ -29,8 +29,8 @@ resource "aws_lambda_permission" "forecast_precompute_eventbridge" {
 
 resource "aws_cloudwatch_event_rule" "forecast_snapshot_schedule" {
   name                = "meso-market-forecast-snapshot-daily"
-  description         = "Archives the current forecast cache into forecast_snapshot once a day"
-  schedule_expression = "cron(5 0 * * ? *)"
+  description         = "Archives the current forecast cache into forecast_snapshot once a day, 20 min after precompute"
+  schedule_expression = "cron(30 0 * * ? *)"
 }
 
 resource "aws_cloudwatch_event_target" "forecast_snapshot" {

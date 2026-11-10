@@ -101,12 +101,13 @@ def _check_snapshot(data: dict) -> None:
     created_at = datetime.fromisoformat(snapshots[0]["createdAt"])
     age = (datetime.now(timezone.utc) - created_at).total_seconds() / 60
 
-    # The daily archive runs once at 00:05 UTC, so a healthy snapshot can be
-    # anywhere from minutes to just under 24.5 hours old depending on when
-    # this hourly check happens to run - bands start well past that ceiling.
-    if 1500 <= age < 1560:
+    # The archive runs daily at 00:30 UTC, this check 30 min later - a
+    # healthy snapshot is reliably about 30 min old every time, so these
+    # bands (one day late, two days late) need only a generous 1 hour of
+    # slack each, not the wide margin an hourly check would need.
+    if 1410 <= age < 1530:
         _notify(f"Meso Market: no forecast snapshot archived in {age / 60:.0f} hours.")
-    elif 2940 <= age < 3000:
+    elif 2850 <= age < 2970:
         _notify(f"Meso Market: still no forecast snapshot archived after {age / 60:.0f} hours.")
 
 
@@ -131,10 +132,11 @@ def _check_breakpoints(data: dict, subscriptions: list[dict]) -> None:
 
 
 def handler(event, context):
-    """Two separate EventBridge rules invoke this with a different `checks`
-    value: "prices" at :10 (time-sensitive - breakpoint alerts should fire
-    soon after a crossing), "health" at :30 (forecast/snapshot staleness,
-    not time-sensitive, checked after their own :10 precompute has run)."""
+    """Three separate EventBridge rules invoke this with a different
+    `checks` value: "prices" at :10 (time-sensitive - breakpoint alerts
+    should fire soon after a crossing), "health" at :30 (forecast
+    staleness, checked after precompute's own :10 run), "snapshot" once
+    daily at 01:00 (30 min after the daily archive job itself)."""
     try:
         data = json.loads(_post(API_URL, QUERY))["data"]
     except (urllib.error.URLError, OSError, KeyError, ValueError) as error:
@@ -151,4 +153,5 @@ def handler(event, context):
         _check_breakpoints(data, subscriptions)
     elif event.get("checks") == "health":
         _check_forecast(data)
+    elif event.get("checks") == "snapshot":
         _check_snapshot(data)

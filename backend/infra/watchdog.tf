@@ -79,11 +79,11 @@ resource "aws_lambda_permission" "watchdog_prices_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.watchdog_prices_schedule.arn
 }
 
-# Forecast/snapshot staleness isn't time-sensitive - runs at :30, after
-# their own :10 precompute job has had a chance to complete.
+# Forecast staleness isn't time-sensitive - runs at :30, after precompute's
+# own :10 run has had a chance to complete.
 resource "aws_cloudwatch_event_rule" "watchdog_health_schedule" {
   name                = "meso-market-watchdog-health"
-  description         = "Runs the forecast/snapshot staleness checks at :30 past every hour"
+  description         = "Runs the forecast staleness check at :30 past every hour"
   schedule_expression = "cron(30 * * * ? *)"
 }
 
@@ -99,4 +99,26 @@ resource "aws_lambda_permission" "watchdog_health_eventbridge" {
   function_name = aws_lambda_function.watchdog.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.watchdog_health_schedule.arn
+}
+
+# Snapshot staleness only needs checking once a day - the archive job itself
+# only runs once a day, at :30 past midnight UTC. Runs 30 min after that.
+resource "aws_cloudwatch_event_rule" "watchdog_snapshot_schedule" {
+  name                = "meso-market-watchdog-snapshot"
+  description         = "Runs the forecast-snapshot staleness check once a day at 01:00 UTC"
+  schedule_expression = "cron(0 1 * * ? *)"
+}
+
+resource "aws_cloudwatch_event_target" "watchdog_snapshot" {
+  rule  = aws_cloudwatch_event_rule.watchdog_snapshot_schedule.name
+  arn   = aws_lambda_function.watchdog.arn
+  input = jsonencode({ checks = "snapshot" })
+}
+
+resource "aws_lambda_permission" "watchdog_snapshot_eventbridge" {
+  statement_id  = "AllowSnapshotEventBridgeInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.watchdog.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.watchdog_snapshot_schedule.arn
 }

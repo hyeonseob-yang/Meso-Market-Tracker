@@ -141,38 +141,34 @@ def test_missing_forecast_notifies():
     assert "no forecast has been computed yet" in notifications[0]
 
 
-def test_forecast_and_snapshot_issues_both_notify_independently():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=100, snapshot_age_minutes=1530, checks="health")
-    assert len(notifications) == 2
-
-
 def test_healthy_snapshot_sends_no_notification():
-    assert _run(_rows(30, 90), snapshot_age_minutes=60, checks="health") == []
+    # ~30 min is the expected age every time now - checked once daily, 30
+    # min after the archive job itself.
+    assert _run(_rows(30, 90), snapshot_age_minutes=30, checks="snapshot") == []
 
 
-def test_snapshot_just_under_a_day_old_does_not_notify():
-    # Up to ~24.5h is normal for a once-daily job, depending on check timing.
-    assert _run(_rows(30, 90), snapshot_age_minutes=1440, checks="health") == []
+def test_snapshot_just_under_one_day_late_does_not_notify():
+    assert _run(_rows(30, 90), snapshot_age_minutes=1400, checks="snapshot") == []
 
 
 def test_stale_snapshot_in_first_band_notifies_once():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=1530, checks="health")
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=1470, checks="snapshot")
     assert len(notifications) == 1
     assert "no forecast snapshot archived in" in notifications[0]
 
 
 def test_stale_snapshot_outside_bands_does_not_renotify():
-    assert _run(_rows(30, 90), snapshot_age_minutes=1800, checks="health") == []
+    assert _run(_rows(30, 90), snapshot_age_minutes=1800, checks="snapshot") == []
 
 
 def test_still_stale_snapshot_after_two_days_notifies_again():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=2970, checks="health")
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=2910, checks="snapshot")
     assert len(notifications) == 1
     assert "still no forecast snapshot archived" in notifications[0]
 
 
 def test_missing_snapshot_notifies():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=None, checks="health")
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=None, checks="snapshot")
     assert len(notifications) == 1
     assert "no forecast snapshot has ever been archived" in notifications[0]
 
