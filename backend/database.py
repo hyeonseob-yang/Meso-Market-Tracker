@@ -342,10 +342,16 @@ def _validate_webhook_url(url: str) -> None:
         raise ValueError("That doesn't look like a Discord webhook URL.")
 
 
+def _validate_thresholds(high: float | None, low: float | None) -> None:
+    if high is None and low is None:
+        raise ValueError("Set at least one of high or low - otherwise this alert would never fire.")
+
+
 def create_alert_subscription(
     user_id: str, webhook_url: str, name: str, high: float | None, low: float | None
 ) -> AlertSubscription:
     _validate_webhook_url(webhook_url)
+    _validate_thresholds(high, low)
     sql = """INSERT INTO alert_subscription(user_id, webhook_url, name, high, low)
              VALUES(%s, %s, %s, %s, %s) RETURNING id, webhook_url, name, high, low"""
 
@@ -386,6 +392,7 @@ def _row_to_alert_subscription(row) -> AlertSubscription:
 def update_alert_subscription(
     user_id: str, id: int, name: str, high: float | None, low: float | None
 ) -> AlertSubscription | None:
+    _validate_thresholds(high, low)
     sql = """UPDATE alert_subscription SET name = %s, high = %s, low = %s
              WHERE id = %s AND user_id = %s
              RETURNING id, webhook_url, name, high, low"""

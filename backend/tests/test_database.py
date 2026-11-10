@@ -436,15 +436,25 @@ VALID_WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
 def test_validate_webhook_url_accepts_real_discord_urls(url):
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchone.return_value = (1, url, "Test", None, None)
+    cur.fetchone.return_value = (1, url, "Test", 500.0, None)
 
     with patch("database._get_conn", return_value=conn):
-        create_alert_subscription("user-123", url, "Test", None, None)  # doesn't raise
+        create_alert_subscription("user-123", url, "Test", 500.0, None)  # doesn't raise
 
 
 def test_validate_webhook_url_rejects_garbage():
     with pytest.raises(ValueError, match="doesn't look like a Discord webhook URL"):
-        create_alert_subscription("user-123", "https://evil.example.com/webhook", "Test", None, None)
+        create_alert_subscription("user-123", "https://evil.example.com/webhook", "Test", 500.0, None)
+
+
+def test_validate_thresholds_rejects_both_null_on_create():
+    with pytest.raises(ValueError, match="Set at least one of high or low"):
+        create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", None, None)
+
+
+def test_validate_thresholds_rejects_both_null_on_update():
+    with pytest.raises(ValueError, match="Set at least one of high or low"):
+        update_alert_subscription("user-123", 1, "Test", None, None)
 
 
 def test_create_alert_subscription_returns_subscription_on_success():
@@ -465,10 +475,10 @@ def test_create_alert_subscription_returns_subscription_on_success():
 def test_create_alert_subscription_stores_under_given_user_id():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchone.return_value = (1, VALID_WEBHOOK_URL, "Test", None, None)
+    cur.fetchone.return_value = (1, VALID_WEBHOOK_URL, "Test", 500.0, None)
 
     with patch("database._get_conn", return_value=conn):
-        create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", None, None)
+        create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", 500.0, None)
 
     _, params = cur.execute.call_args[0]
     assert params[0] == "user-123"
@@ -481,7 +491,7 @@ def test_create_alert_subscription_raises_clear_error_on_duplicate_webhook():
 
     with patch("database._get_conn", return_value=conn):
         with pytest.raises(ValueError, match="You already have an alert on that webhook"):
-            create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", None, None)
+            create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", 500.0, None)
 
     conn.rollback.assert_called_once()
 
@@ -494,7 +504,7 @@ def test_create_alert_subscription_raises_value_error_on_other_invalid_data(pg_e
 
     with patch("database._get_conn", return_value=conn):
         with pytest.raises(ValueError, match="Alert subscription data is invalid"):
-            create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", None, None)
+            create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", 500.0, None)
 
     conn.rollback.assert_called_once()
 
@@ -502,7 +512,7 @@ def test_create_alert_subscription_raises_value_error_on_other_invalid_data(pg_e
 def test_create_alert_subscription_raises_on_connection_failure():
     with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
         with pytest.raises(RuntimeError, match="Unable to create the alert subscription"):
-            create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", None, None)
+            create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", 500.0, None)
 
 
 def test_update_alert_subscription_returns_none_when_not_found():
@@ -511,7 +521,7 @@ def test_update_alert_subscription_returns_none_when_not_found():
     cur.fetchone.return_value = None
 
     with patch("database._get_conn", return_value=conn):
-        assert update_alert_subscription("user-123", 999, "Test", None, None) is None
+        assert update_alert_subscription("user-123", 999, "Test", 500.0, None) is None
 
 
 def test_update_alert_subscription_returns_none_for_someone_elses_row():
@@ -522,7 +532,7 @@ def test_update_alert_subscription_returns_none_for_someone_elses_row():
     cur.fetchone.return_value = None
 
     with patch("database._get_conn", return_value=conn):
-        result = update_alert_subscription("wrong-user", 1, "Test", None, None)
+        result = update_alert_subscription("wrong-user", 1, "Test", 500.0, None)
 
     assert result is None
     _, params = cur.execute.call_args[0]
