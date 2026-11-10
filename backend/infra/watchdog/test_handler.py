@@ -39,10 +39,12 @@ def _snapshots(age_minutes):
     return [{"createdAt": (now - timedelta(minutes=age_minutes)).isoformat()}]
 
 
-def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60):
+def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60, checks="prices"):
     """Mocks _post: the GraphQL call returns the given rows and forecast/
     snapshot staleness (None rows simulates an unreachable API); returns
-    whatever text got sent to Discord."""
+    whatever text got sent to Discord. checks picks which of the two
+    EventBridge-scheduled invocations to simulate - "prices" (the default,
+    matching most of this file's tests) or "health"."""
     notifications = []
 
     def fake_post(url, body):
@@ -64,7 +66,7 @@ def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60):
     # No subscriptions by default - this file's existing tests are about the
     # staleness checks, not breakpoint alerts (see _run_breakpoints for those).
     with patch("handler._post", side_effect=fake_post), patch("handler._get", return_value=b"[]"):
-        handler.handler({}, None)
+        handler.handler({"checks": checks}, None)
 
     return notifications
 
@@ -114,63 +116,63 @@ def test_unreachable_api_notifies():
 
 
 def test_healthy_forecast_sends_no_notification():
-    assert _run(_rows(30, 90), forecast_age_minutes=20) == []
+    assert _run(_rows(30, 90), forecast_age_minutes=20, checks="health") == []
 
 
 def test_stale_forecast_in_first_band_notifies_once():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=100)
+    notifications = _run(_rows(30, 90), forecast_age_minutes=100, checks="health")
     assert len(notifications) == 1
     assert "forecast cache hasn't refreshed" in notifications[0]
 
 
 def test_stale_forecast_outside_bands_does_not_renotify():
-    assert _run(_rows(30, 90), forecast_age_minutes=200) == []
+    assert _run(_rows(30, 90), forecast_age_minutes=200, checks="health") == []
 
 
 def test_still_stale_forecast_after_six_hours_notifies_again():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=400)
+    notifications = _run(_rows(30, 90), forecast_age_minutes=400, checks="health")
     assert len(notifications) == 1
     assert "still stale" in notifications[0]
 
 
 def test_missing_forecast_notifies():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=None)
+    notifications = _run(_rows(30, 90), forecast_age_minutes=None, checks="health")
     assert len(notifications) == 1
     assert "no forecast has been computed yet" in notifications[0]
 
 
-def test_price_and_forecast_issues_both_notify_independently():
-    notifications = _run(_rows(100), forecast_age_minutes=100)
+def test_forecast_and_snapshot_issues_both_notify_independently():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=100, snapshot_age_minutes=1530, checks="health")
     assert len(notifications) == 2
 
 
 def test_healthy_snapshot_sends_no_notification():
-    assert _run(_rows(30, 90), snapshot_age_minutes=60) == []
+    assert _run(_rows(30, 90), snapshot_age_minutes=60, checks="health") == []
 
 
 def test_snapshot_just_under_a_day_old_does_not_notify():
     # Up to ~24.5h is normal for a once-daily job, depending on check timing.
-    assert _run(_rows(30, 90), snapshot_age_minutes=1440) == []
+    assert _run(_rows(30, 90), snapshot_age_minutes=1440, checks="health") == []
 
 
 def test_stale_snapshot_in_first_band_notifies_once():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=1530)
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=1530, checks="health")
     assert len(notifications) == 1
     assert "no forecast snapshot archived in" in notifications[0]
 
 
 def test_stale_snapshot_outside_bands_does_not_renotify():
-    assert _run(_rows(30, 90), snapshot_age_minutes=1800) == []
+    assert _run(_rows(30, 90), snapshot_age_minutes=1800, checks="health") == []
 
 
 def test_still_stale_snapshot_after_two_days_notifies_again():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=2970)
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=2970, checks="health")
     assert len(notifications) == 1
     assert "still no forecast snapshot archived" in notifications[0]
 
 
 def test_missing_snapshot_notifies():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=None)
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=None, checks="health")
     assert len(notifications) == 1
     assert "no forecast snapshot has ever been archived" in notifications[0]
 

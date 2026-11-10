@@ -56,21 +56,47 @@ resource "aws_lambda_function" "watchdog" {
   depends_on = [aws_cloudwatch_log_group.watchdog]
 }
 
-resource "aws_cloudwatch_event_rule" "watchdog_schedule" {
-  name                = "meso-market-watchdog-hourly"
-  description         = "Runs the Tracker staleness watchdog at :30 past every hour"
-  schedule_expression = "cron(30 * * * ? *)"
+# Price/breakpoint checks are time-sensitive (an alert should fire soon
+# after a crossing), so they run at :10, right after the Collector's ~:01
+# post - rather than waiting for the :30 slot below.
+resource "aws_cloudwatch_event_rule" "watchdog_prices_schedule" {
+  name                = "meso-market-watchdog-prices"
+  description         = "Runs the price staleness and breakpoint-alert checks at :10 past every hour"
+  schedule_expression = "cron(10 * * * ? *)"
 }
 
-resource "aws_cloudwatch_event_target" "watchdog" {
-  rule = aws_cloudwatch_event_rule.watchdog_schedule.name
-  arn  = aws_lambda_function.watchdog.arn
+resource "aws_cloudwatch_event_target" "watchdog_prices" {
+  rule  = aws_cloudwatch_event_rule.watchdog_prices_schedule.name
+  arn   = aws_lambda_function.watchdog.arn
+  input = jsonencode({ checks = "prices" })
 }
 
-resource "aws_lambda_permission" "watchdog_eventbridge" {
-  statement_id  = "AllowEventBridgeInvoke"
+resource "aws_lambda_permission" "watchdog_prices_eventbridge" {
+  statement_id  = "AllowPricesEventBridgeInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.watchdog.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.watchdog_schedule.arn
+  source_arn    = aws_cloudwatch_event_rule.watchdog_prices_schedule.arn
+}
+
+# Forecast/snapshot staleness isn't time-sensitive - runs at :30, after
+# their own :10 precompute job has had a chance to complete.
+resource "aws_cloudwatch_event_rule" "watchdog_health_schedule" {
+  name                = "meso-market-watchdog-health"
+  description         = "Runs the forecast/snapshot staleness checks at :30 past every hour"
+  schedule_expression = "cron(30 * * * ? *)"
+}
+
+resource "aws_cloudwatch_event_target" "watchdog_health" {
+  rule  = aws_cloudwatch_event_rule.watchdog_health_schedule.name
+  arn   = aws_lambda_function.watchdog.arn
+  input = jsonencode({ checks = "health" })
+}
+
+resource "aws_lambda_permission" "watchdog_health_eventbridge" {
+  statement_id  = "AllowHealthEventBridgeInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.watchdog.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.watchdog_health_schedule.arn
 }
