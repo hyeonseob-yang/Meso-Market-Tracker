@@ -52,9 +52,10 @@ def internal_trigger():
 
 @app.route("/internal/alert-subscriptions", methods=["GET"])
 def internal_alert_subscriptions():
-    """Separate route/secret from /internal/trigger - that one is EventBridge
-    invoking this Lambda directly; this one is a different Lambda (the
-    watchdog) calling in over the internet, a different trust boundary."""
+    """Gated separately from /internal/trigger: this route has no EventBridge
+    invoke path at all (the Lambda Web Adapter's pass-through always targets
+    /internal/trigger), so the only way in is a real HTTP call from the
+    watchdog Lambda - WATCHDOG_SECRET is what actually protects it."""
     expected = os.environ.get("WATCHDOG_SECRET")
     if not expected or request.headers.get("x-watchdog-secret") != expected:
         return "", 403
