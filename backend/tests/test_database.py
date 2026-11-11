@@ -1,4 +1,5 @@
 import dataclasses
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import psycopg2
@@ -606,3 +607,18 @@ def test_get_alert_subscriptions_returns_everyone_with_no_filter():
     assert result == [{"webhook_url": VALID_WEBHOOK_URL, "name": "Test", "high": 500.0, "low": None}]
     sql = cur.execute.call_args[0][0]
     assert "WHERE" not in sql
+
+
+def test_get_alert_subscriptions_converts_decimal_to_float():
+    # high/low come back from psycopg2 as Decimal - jsonify serializes Decimal
+    # as a string, which would break the watchdog's numeric comparisons.
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = [(VALID_WEBHOOK_URL, "Test", Decimal("500.00"), Decimal("300.00"))]
+
+    with patch("database._get_conn", return_value=conn):
+        result = get_alert_subscriptions()
+
+    assert result == [{"webhook_url": VALID_WEBHOOK_URL, "name": "Test", "high": 500.0, "low": 300.0}]
+    assert isinstance(result[0]["high"], float)
+    assert isinstance(result[0]["low"], float)

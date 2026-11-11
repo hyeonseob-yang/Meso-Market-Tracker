@@ -457,8 +457,18 @@ def get_alert_subscriptions() -> list[dict]:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(sql)
-            columns = ("webhook_url", "name", "high", "low")
-            return [dict(zip(columns, row)) for row in cur.fetchall()]
+            # high/low come back as Decimal; Flask's jsonify serializes Decimal
+            # as a string (not a number), which would break the watchdog's
+            # numeric comparisons against the GraphQL API's float values.
+            return [
+                {
+                    "webhook_url": row[0],
+                    "name": row[1],
+                    "high": float(row[2]) if row[2] is not None else None,
+                    "low": float(row[3]) if row[3] is not None else None,
+                }
+                for row in cur.fetchall()
+            ]
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("get_alert_subscriptions failed: %s", _sanitize(str(error)))
         raise RuntimeError("Unable to fetch alert subscriptions right now.") from error
