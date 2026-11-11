@@ -1,4 +1,5 @@
 import dataclasses
+from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -20,6 +21,7 @@ from database import (
     get_prices,
     insert_forecast_snapshot,
     insert_price,
+    set_alert_subscription_notified,
     update_alert_subscription,
     upsert_forecast_cache,
 )
@@ -599,12 +601,14 @@ def test_get_alert_subscriptions_for_user_filters_by_user_id():
 def test_get_alert_subscriptions_returns_everyone_with_no_filter():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchall.return_value = [(VALID_WEBHOOK_URL, "Test", 500.0, None)]
+    cur.fetchall.return_value = [(1, VALID_WEBHOOK_URL, "Test", 500.0, None, None)]
 
     with patch("database._get_conn", return_value=conn):
         result = get_alert_subscriptions()
 
-    assert result == [{"webhook_url": VALID_WEBHOOK_URL, "name": "Test", "high": 500.0, "low": None}]
+    assert result == [
+        {"id": 1, "webhook_url": VALID_WEBHOOK_URL, "name": "Test", "high": 500.0, "low": None, "last_alerted_at": None}
+    ]
     sql = cur.execute.call_args[0][0]
     assert "WHERE" not in sql
 
@@ -614,11 +618,49 @@ def test_get_alert_subscriptions_converts_decimal_to_float():
     # as a string, which would break the watchdog's numeric comparisons.
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
-    cur.fetchall.return_value = [(VALID_WEBHOOK_URL, "Test", Decimal("500.00"), Decimal("300.00"))]
+    cur.fetchall.return_value = [(1, VALID_WEBHOOK_URL, "Test", Decimal("500.00"), Decimal("300.00"), None)]
 
     with patch("database._get_conn", return_value=conn):
         result = get_alert_subscriptions()
 
-    assert result == [{"webhook_url": VALID_WEBHOOK_URL, "name": "Test", "high": 500.0, "low": 300.0}]
+    assert result[0]["high"] == 500.0
+    assert result[0]["low"] == 300.0
     assert isinstance(result[0]["high"], float)
     assert isinstance(result[0]["low"], float)
+
+
+def test_get_alert_subscriptions_formats_last_alerted_at():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    alerted_at = datetime(2026, 11, 11, 12, 0, 0, tzinfo=timezone.utc)
+    cur.fetchall.return_value = [(1, VALID_WEBHOOK_URL, "Test", 500.0, None, alerted_at)]
+
+    with patch("database._get_conn", return_value=conn):
+        result = get_alert_subscriptions()
+
+    assert result[0]["last_alerted_at"] == alerted_at.isoformat()
+
+
+def test_set_alert_subscription_notified_true_sets_now():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+
+    with patch("database._get_conn", return_value=conn):
+        set_alert_subscription_notified(1, True)
+
+    sql, params = cur.execute.call_args[0]
+    assert params == (True, 1)
+    assert "now()" in sql
+    conn.commit.assert_called_once()
+
+
+def test_set_alert_subscription_notified_false_clears_it():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+
+    with patch("database._get_conn", return_value=conn):
+        set_alert_subscription_notified(1, False)
+
+    sql, params = cur.execute.call_args[0]
+    assert params == (False, 1)
+    conn.commit.assert_called_once()

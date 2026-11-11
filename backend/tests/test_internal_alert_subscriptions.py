@@ -45,3 +45,31 @@ def test_correct_secret_returns_every_subscription(mock_get, client):
     assert response.status_code == 200
     assert response.json == SAMPLE_SUBSCRIPTIONS
     mock_get.assert_called_once_with()
+
+
+def post_notified(client, id, notified, headers=None):
+    return client.post(f"/internal/alert-subscriptions/{id}/notified", json={"notified": notified}, headers=headers or {})
+
+
+def test_notified_rejects_missing_secret(client):
+    response = post_notified(client, 1, True)
+    assert response.status_code == 403
+
+
+def test_notified_rejects_wrong_secret(client):
+    response = post_notified(client, 1, True, {"x-watchdog-secret": "nope"})
+    assert response.status_code == 403
+
+
+@patch("app.set_alert_subscription_notified")
+def test_notified_with_correct_secret_updates_subscription(mock_set, client):
+    response = post_notified(client, 1, True, {"x-watchdog-secret": TEST_SECRET})
+    assert response.status_code == 204
+    mock_set.assert_called_once_with(1, True)
+
+
+@patch("app.set_alert_subscription_notified")
+def test_notified_false_clears_subscription(mock_set, client):
+    response = post_notified(client, 1, False, {"x-watchdog-secret": TEST_SECRET})
+    assert response.status_code == 204
+    mock_set.assert_called_once_with(1, False)

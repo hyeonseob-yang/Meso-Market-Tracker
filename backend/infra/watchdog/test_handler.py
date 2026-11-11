@@ -175,78 +175,124 @@ def test_missing_snapshot_notifies():
 
 def _price_rows(*averages):
     """Newest-first latestPrices(limit: 2)-shaped rows, average only -
-    datetime isn't used by _check_breakpoints."""
+    only the newest row is used by _check_breakpoints (it's level-triggered,
+    not edge-triggered)."""
     return [{"average": a} for a in averages]
+
+
+def _sub(id=1, webhook_url="https://discord.com/api/webhooks/1/a", name="Test", high=None, low=None, last_alerted_minutes_ago=None):
+    """A subscription dict shaped like get_alert_subscriptions()'s output.
+    last_alerted_minutes_ago=None means never alerted (the usual case for a
+    freshly created subscription)."""
+    last_alerted_at = None
+    if last_alerted_minutes_ago is not None:
+        last_alerted_at = (datetime.now(timezone.utc) - timedelta(minutes=last_alerted_minutes_ago)).isoformat()
+    return {"id": id, "webhook_url": webhook_url, "name": name, "high": high, "low": low, "last_alerted_at": last_alerted_at}
 
 
 def _run_breakpoints(rows, subscriptions):
     notifications = []  # list of (webhook_url, text)
+    notified_calls = []  # list of (subscription_id, notified bool)
 
-    def fake_post(url, body):
-        notifications.append((url, json.loads(body)["content"]))
+    def fake_post(url, body, headers=None):
+        if url.startswith(handler.ALERT_SUBSCRIPTIONS_URL):
+            subscription_id = int(url.rsplit("/", 2)[-2])
+            notified_calls.append((subscription_id, json.loads(body)["notified"]))
+        else:
+            notifications.append((url, json.loads(body)["content"]))
         return b"{}"
 
     with patch("handler._post", side_effect=fake_post):
         handler._check_breakpoints({"latestPrices": rows}, subscriptions)
 
-    return notifications
+    return notifications, notified_calls
 
 
 def test_no_subscriptions_sends_no_notification():
-    assert _run_breakpoints(_price_rows(600, 400), []) == []
+    notifications, notified_calls = _run_breakpoints(_price_rows(600), [])
+    assert notifications == []
+    assert notified_calls == []
 
 
-def test_crossing_above_high_notifies_that_subscription():
-    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "High alert", "high": 500, "low": None}
-    notifications = _run_breakpoints(_price_rows(600, 400), [sub])
+def test_newly_crossed_high_notifies_and_records_it():
+    sub = _sub(high=500)
+    notifications, notified_calls = _run_breakpoints(_price_rows(600), [sub])
     assert len(notifications) == 1
     assert notifications[0][0] == sub["webhook_url"]
-    assert "above" in notifications[0][1]
+    assert "crossed above" in notifications[0][1]
+    assert notified_calls == [(sub["id"], True)]
 
 
-def test_still_above_high_does_not_renotify():
-    # Both latest and previous are already past the threshold - not a new crossing.
-    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "High alert", "high": 500, "low": None}
-    assert _run_breakpoints(_price_rows(600, 550), [sub]) == []
+def test_already_crossed_before_subscription_existed_still_notifies():
+    # Never alerted before (last_alerted_at is None) even though the price
+    # has presumably been past the threshold for a while - this is the bug
+    # that motivated level-triggering: a subscription created while already
+    # crossed must not wait for a fresh edge to alert.
+    sub = _sub(low=410)
+    notifications, notified_calls = _run_breakpoints(_price_rows(392), [sub])
+    assert len(notifications) == 1
+    assert "crossed below" in notifications[0][1]
+    assert notified_calls == [(sub["id"], True)]
+
+
+def test_recently_notified_does_not_renotify_within_reminder_interval():
+    sub = _sub(high=500, last_alerted_minutes_ago=60)
+    notifications, notified_calls = _run_breakpoints(_price_rows(600), [sub])
+    assert notifications == []
+    assert notified_calls == []
+
+
+def test_still_crossed_after_reminder_interval_notifies_again():
+    sub = _sub(high=500, last_alerted_minutes_ago=handler.REMINDER_INTERVAL_MINUTES + 10)
+    notifications, notified_calls = _run_breakpoints(_price_rows(600), [sub])
+    assert len(notifications) == 1
+    assert "is still above" in notifications[0][1]
+    assert notified_calls == [(sub["id"], True)]
 
 
 def test_crossing_below_low_notifies():
-    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Low alert", "high": None, "low": 300}
-    notifications = _run_breakpoints(_price_rows(200, 400), [sub])
+    sub = _sub(low=300)
+    notifications, _ = _run_breakpoints(_price_rows(200), [sub])
     assert len(notifications) == 1
     assert "below" in notifications[0][1]
 
 
+def test_no_longer_crossed_clears_recorded_state():
+    sub = _sub(high=500, last_alerted_minutes_ago=60)
+    notifications, notified_calls = _run_breakpoints(_price_rows(400), [sub])
+    assert notifications == []
+    assert notified_calls == [(sub["id"], False)]
+
+
+def test_never_notified_and_not_crossed_has_no_side_effects():
+    sub = _sub(high=500)
+    notifications, notified_calls = _run_breakpoints(_price_rows(400), [sub])
+    assert notifications == []
+    assert notified_calls == []
+
+
 def test_only_the_crossing_subscription_is_notified():
-    crossing = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Crossing", "high": 500, "low": None}
-    not_crossing = {
-        "webhook_url": "https://discord.com/api/webhooks/2/b",
-        "name": "Not crossing",
-        "high": 1000,
-        "low": None,
-    }
-    notifications = _run_breakpoints(_price_rows(600, 400), [crossing, not_crossing])
+    crossing = _sub(id=1, webhook_url="https://discord.com/api/webhooks/1/a", name="Crossing", high=500)
+    not_crossing = _sub(id=2, webhook_url="https://discord.com/api/webhooks/2/b", name="Not crossing", high=1000)
+    notifications, notified_calls = _run_breakpoints(_price_rows(600), [crossing, not_crossing])
     assert len(notifications) == 1
     assert notifications[0][0] == crossing["webhook_url"]
+    assert notified_calls == [(crossing["id"], True)]
 
 
 def test_null_average_does_not_crash_or_notify():
-    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Test", "high": 500, "low": None}
-    assert _run_breakpoints([{"average": None}], [sub]) == []
-
-
-def test_no_previous_reading_still_notifies():
-    # First-ever reading - no prior data to suppress against.
-    sub = {"webhook_url": "https://discord.com/api/webhooks/1/a", "name": "Test", "high": 500, "low": None}
-    notifications = _run_breakpoints(_price_rows(600), [sub])
-    assert len(notifications) == 1
+    sub = _sub(high=500)
+    notifications, notified_calls = _run_breakpoints([{"average": None}], [sub])
+    assert notifications == []
+    assert notified_calls == []
 
 
 def test_two_different_users_sharing_one_webhook_evaluated_independently():
     shared_url = "https://discord.com/api/webhooks/1/a"
-    high_sub = {"webhook_url": shared_url, "name": "User A's high alert", "high": 500, "low": None}
-    low_sub = {"webhook_url": shared_url, "name": "User B's low alert", "high": None, "low": 300}
+    high_sub = _sub(id=1, webhook_url=shared_url, name="User A's high alert", high=500)
+    low_sub = _sub(id=2, webhook_url=shared_url, name="User B's low alert", low=300)
     # Crosses high (600 > 500) but not low (600 is not < 300) - only the high one should fire.
-    notifications = _run_breakpoints(_price_rows(600, 400), [high_sub, low_sub])
+    notifications, notified_calls = _run_breakpoints(_price_rows(600), [high_sub, low_sub])
     assert len(notifications) == 1
     assert "User A's high alert" in notifications[0][1]
+    assert notified_calls == [(high_sub["id"], True)]

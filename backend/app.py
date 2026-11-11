@@ -3,7 +3,13 @@ import os
 from flask import Flask, jsonify, request
 from strawberry.flask.views import GraphQLView
 
-from database import get_alert_subscriptions, get_forecast_cache, insert_forecast_snapshot, upsert_forecast_cache
+from database import (
+    get_alert_subscriptions,
+    get_forecast_cache,
+    insert_forecast_snapshot,
+    set_alert_subscription_notified,
+    upsert_forecast_cache,
+)
 from schema import schema
 
 app = Flask(__name__)
@@ -60,3 +66,17 @@ def internal_alert_subscriptions():
     if not expected or request.headers.get("x-watchdog-secret") != expected:
         return "", 403
     return jsonify(get_alert_subscriptions())
+
+
+@app.route("/internal/alert-subscriptions/<int:id>/notified", methods=["POST"])
+def internal_alert_subscription_notified(id):
+    """Lets the watchdog Lambda record whether it just alerted on this
+    subscription's crossing, so it knows whether to suppress or send the
+    next one. Same secret-gating as the GET route above, for the same
+    reason - this is the only write path the watchdog has into the DB."""
+    expected = os.environ.get("WATCHDOG_SECRET")
+    if not expected or request.headers.get("x-watchdog-secret") != expected:
+        return "", 403
+    body = request.get_json(silent=True) or {}
+    set_alert_subscription_notified(id, bool(body.get("notified")))
+    return "", 204

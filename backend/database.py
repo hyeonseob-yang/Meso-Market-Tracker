@@ -451,7 +451,7 @@ def get_alert_subscriptions() -> list[dict]:
     # No user filter and plain dicts, not AlertSubscription - this is for the
     # watchdog Lambda (see infra/watchdog/), which needs every subscription
     # regardless of owner to actually send alerts. Never exposed via schema.py.
-    sql = "SELECT webhook_url, name, high, low FROM alert_subscription"
+    sql = "SELECT id, webhook_url, name, high, low, last_alerted_at FROM alert_subscription"
 
     try:
         conn = _get_conn()
@@ -462,13 +462,33 @@ def get_alert_subscriptions() -> list[dict]:
             # numeric comparisons against the GraphQL API's float values.
             return [
                 {
-                    "webhook_url": row[0],
-                    "name": row[1],
-                    "high": float(row[2]) if row[2] is not None else None,
-                    "low": float(row[3]) if row[3] is not None else None,
+                    "id": row[0],
+                    "webhook_url": row[1],
+                    "name": row[2],
+                    "high": float(row[3]) if row[3] is not None else None,
+                    "low": float(row[4]) if row[4] is not None else None,
+                    "last_alerted_at": row[5].isoformat() if row[5] is not None else None,
                 }
                 for row in cur.fetchall()
             ]
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("get_alert_subscriptions failed: %s", _sanitize(str(error)))
         raise RuntimeError("Unable to fetch alert subscriptions right now.") from error
+
+
+def set_alert_subscription_notified(id: int, notified: bool) -> None:
+    # Lets the watchdog Lambda record that it just alerted on a crossing (so
+    # it can suppress repeats until the reminder interval elapses) or that
+    # the condition cleared (so the next crossing alerts right away rather
+    # than waiting out a stale interval). now() is computed in Postgres to
+    # avoid clock skew between the watchdog, this Lambda, and the database.
+    sql = "UPDATE alert_subscription SET last_alerted_at = CASE WHEN %s THEN now() ELSE NULL END WHERE id = %s"
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (notified, id))
+            conn.commit()
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("set_alert_subscription_notified failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to update the alert subscription right now.") from error
