@@ -1,3 +1,5 @@
+import LoadingText from "../components/loadingText";
+
 export default function Loading() {
-  return <p className="text-gray-600">Loading alerts…</p>;
+  return <LoadingText message="Loading alerts…" />;
 }
