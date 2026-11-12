@@ -25,7 +25,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession() reads the already-refreshed cookie locally (no network call) -
+  // proxy.ts's middleware is the one place that actually revalidates against
+  // Supabase per request. Fine here since this only decides what to render,
+  // not what to authorize - every real mutation is verified independently
+  // against Supabase's JWKS in the backend regardless of this value.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   return (
     <html lang="en">
