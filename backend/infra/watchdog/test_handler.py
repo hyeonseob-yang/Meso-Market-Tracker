@@ -77,20 +77,19 @@ def test_healthy_data_sends_no_notification():
     assert _run(_rows(30, 90)) == []
 
 
-def test_stale_in_first_band_notifies_once():
-    notifications = _run(_rows(100))
+def test_stale_after_one_missed_post_notifies_once():
+    notifications = _run(_rows(70))
     assert len(notifications) == 1
     assert "no new row for" in notifications[0]
 
 
 def test_stale_outside_bands_does_not_renotify():
-    # Already alerted once at the 90-150 min band - don't spam every
-    # hourly check while it stays stale in between.
-    assert _run(_rows(200)) == []
+    # ~130 is the next hourly check after the first alert.
+    assert _run(_rows(130)) == []
 
 
-def test_still_stale_after_six_hours_notifies_again():
-    notifications = _run(_rows(400))
+def test_still_stale_after_six_missed_posts_notifies_again():
+    notifications = _run(_rows(370))
     assert len(notifications) == 1
     assert "still no new row" in notifications[0]
 

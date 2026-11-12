@@ -60,12 +60,12 @@ def _check_prices(data: dict) -> None:
         second_latest = datetime.fromisoformat(rows[1]["datetime"])
         gap = (latest - second_latest).total_seconds() / 60
 
-    # Runs hourly at :10, shortly after the Collector's ~:01 post, so a
-    # healthy newest row is only about 10 minutes old at check time. These
-    # bands avoid re-alerting on every single check while something stays stale.
-    if 90 <= age < 150:
+    # Runs hourly at :10, after the Collector's ~:01 post, so the newest row
+    # is ~10 min old when healthy, ~70 after one missed post, ~370 after six.
+    # Each 60 min band catches exactly one hourly check.
+    if 60 <= age < 120:
         _notify(f"Meso Market: no new row for {age:.0f} min (last at {latest:%H:%M} UTC).")
-    elif 390 <= age < 450:
+    elif 360 <= age < 420:
         _notify(f"Meso Market: still no new row after {age / 60:.0f} hours.")
     elif age < 60 and gap is not None and gap >= 90:
         _notify(f"Meso Market: collection resumed after a {gap / 60:.1f} hour gap.")
