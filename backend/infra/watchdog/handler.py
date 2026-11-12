@@ -83,12 +83,12 @@ def _check_forecast(data: dict) -> None:
     updated_at = datetime.fromisoformat(forecast["updatedAt"])
     age = (datetime.now(timezone.utc) - updated_at).total_seconds() / 60
 
-    # Precompute runs hourly at :10, this check at :30. Same 90/390 min
-    # bands as the price check, for the same reason: each is itself an
-    # hourly job, so these thresholds mean "one missed cycle" / "several."
-    if 90 <= age < 150:
+    # Precompute runs hourly at :10, this check at :30, so a healthy cache is
+    # ~20 min old, ~80 after one missed run, ~380 after six. Each 60 min band
+    # catches exactly one hourly check.
+    if 60 <= age < 120:
         _notify(f"Meso Market: forecast cache hasn't refreshed in {age:.0f} min.")
-    elif 390 <= age < 450:
+    elif 360 <= age < 420:
         _notify(f"Meso Market: forecast cache still stale after {age / 60:.0f} hours.")
 
 
@@ -170,9 +170,19 @@ def handler(event, context):
     staleness, checked after precompute's own :10 run), "snapshot" once
     daily at 01:00 (30 min after the daily archive job itself)."""
     try:
-        data = json.loads(_post(API_URL, QUERY))["data"]
-    except (urllib.error.URLError, OSError, KeyError, ValueError) as error:
+        body = json.loads(_post(API_URL, QUERY))
+    except (urllib.error.URLError, OSError, ValueError) as error:
         _notify(f"Meso Market: watchdog couldn't reach the Tracker API: {error}")
+        return
+
+    # A failing non-null field (latestPrices, forecastSnapshots) nulls all of
+    # `data`; a failing nullable one (forecast) reads as null. Both still
+    # return HTTP 200 with `errors`.
+    data = body.get("data") if isinstance(body, dict) else None
+    errors = body.get("errors") if isinstance(body, dict) else None
+    if errors or data is None:
+        detail = errors[0].get("message", errors[0]) if errors else "no data"
+        _notify(f"Meso Market: Tracker API returned an error - is the database down? ({detail})")
         return
 
     if event.get("checks") == "prices":

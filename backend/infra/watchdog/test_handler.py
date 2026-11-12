@@ -39,7 +39,7 @@ def _snapshots(age_minutes):
     return [{"createdAt": (now - timedelta(minutes=age_minutes)).isoformat()}]
 
 
-def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60, checks="prices"):
+def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60, checks="prices", response=None):
     """Mocks _post: the GraphQL call returns the given rows and forecast/
     snapshot staleness (None rows simulates an unreachable API); returns
     whatever text got sent to Discord. checks picks which of the two
@@ -49,6 +49,8 @@ def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60, checks=
 
     def fake_post(url, body):
         if url == handler.API_URL:
+            if response is not None:
+                return json.dumps(response).encode()
             if rows_or_none is None:
                 raise OSError("connection refused")
             return json.dumps(
@@ -115,22 +117,50 @@ def test_unreachable_api_notifies():
     assert "couldn't reach" in notifications[0]
 
 
+_DB_ERROR = [{"message": "Unable to fetch forecast snapshots right now."}]
+
+
+def test_null_data_with_errors_notifies_for_every_check():
+    for checks in ("prices", "health", "snapshot"):
+        notifications = _run(None, checks=checks, response={"data": None, "errors": _DB_ERROR})
+        assert len(notifications) == 1
+        assert "Tracker API returned an error" in notifications[0]
+        assert "Unable to fetch forecast snapshots" in notifications[0]
+
+
+def test_partial_errors_notify_instead_of_reporting_missing_forecast():
+    response = {
+        "data": {"latestPrices": _rows(30, 90), "forecast": None, "forecastSnapshots": _snapshots(30)},
+        "errors": [{"message": "Unable to fetch the precomputed forecast right now."}],
+    }
+    notifications = _run(None, checks="health", response=response)
+    assert len(notifications) == 1
+    assert "Tracker API returned an error" in notifications[0]
+
+
+def test_null_data_without_errors_notifies():
+    notifications = _run(None, response={"data": None})
+    assert len(notifications) == 1
+    assert "Tracker API returned an error" in notifications[0]
+
+
 def test_healthy_forecast_sends_no_notification():
     assert _run(_rows(30, 90), forecast_age_minutes=20, checks="health") == []
 
 
-def test_stale_forecast_in_first_band_notifies_once():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=100, checks="health")
+def test_stale_forecast_after_one_missed_run_notifies_once():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=80, checks="health")
     assert len(notifications) == 1
     assert "forecast cache hasn't refreshed" in notifications[0]
 
 
 def test_stale_forecast_outside_bands_does_not_renotify():
-    assert _run(_rows(30, 90), forecast_age_minutes=200, checks="health") == []
+    # ~140 is the next hourly check after the first alert.
+    assert _run(_rows(30, 90), forecast_age_minutes=140, checks="health") == []
 
 
-def test_still_stale_forecast_after_six_hours_notifies_again():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=400, checks="health")
+def test_still_stale_forecast_after_six_missed_runs_notifies_again():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=380, checks="health")
     assert len(notifications) == 1
     assert "still stale" in notifications[0]
 
