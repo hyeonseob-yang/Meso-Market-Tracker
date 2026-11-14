@@ -8,16 +8,26 @@ Tracks the price of meso (MapleStory's in-game currency) in Maple Points over ti
 MapleStory's in-game currency; the thing whose price is tracked.
 
 **Maple Points**:
-MapleStory's premium currency; the unit every price in the Tracker is expressed in.
+MapleStory's premium currency. Every price in the Tracker is Maple Points per 100M meso.
 _Avoid_: NX, points
 
 **Price Reading**:
-One hourly observation of the meso market.
+One hourly observation of the meso market: an Average plus Buy and Sell Prices at each Order Size.
 _Avoid_: row, record, data point
 
 **Average**:
-The mean traded price, in Maple Points, over the rolling 100B-meso trade window at the time of a Price Reading. Absent when the window had no completed trades.
+The mean traded price over the rolling 100B-meso trade window at the time of a Price Reading. Absent when the window had no completed trades.
 _Avoid_: price (on its own), mean
+
+**Order Size**:
+The total amount of meso being bought or sold: 100M, 1B or 10B.
+_Avoid_: tier, lot
+
+**Buy Price**:
+What you would pay, per 100M meso, to buy a given Order Size.
+
+**Sell Price**:
+What you would earn, per 100M meso, by selling a given Order Size.
 
 **Manual Reading**:
 A Price Reading entered by hand rather than posted by the Collector, mostly history from before automated collection began. Shown on the chart but never used to train a Forecast.
@@ -44,11 +54,11 @@ A frozen copy of the Forecast as it stood at one moment, kept so it can later be
 _Avoid_: saved prediction, backup
 
 **Archived Snapshot**:
-A Forecast Snapshot taken automatically once a day; it has no owner.
+A Forecast Snapshot taken automatically once a day; the only kind with no owner, visible to everyone.
 _Avoid_: daily backup
 
 **Saved Snapshot**:
-A Forecast Snapshot taken manually by a logged-in user; visible only to that user.
+A Forecast Snapshot taken manually by a logged-in user; always owned, and visible only to that user.
 
 ## Alerts
 
