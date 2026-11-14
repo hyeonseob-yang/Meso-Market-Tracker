@@ -405,12 +405,16 @@ def test_forecast_snapshots_query_passes_user_id_when_logged_in(mock_get, client
     mock_get.assert_called_once_with(50, "user-123")
 
 
-def _gql_snapshot_write(client, query, variables, secret=TEST_SNAPSHOT_SECRET):
+def _gql_snapshot_write(client, query, variables, secret=TEST_SNAPSHOT_SECRET, sub="user-123"):
+    """Logged in as `sub` by default; pass sub=None for a logged-out visitor."""
+    headers = {"x-forecast-snapshot-secret": secret}
+    if sub is not None:
+        headers["Authorization"] = f"Bearer {_make_token(sub=sub)}"
     return client.post(
         "/price",
         data=json.dumps({"query": query, "variables": variables}),
         content_type="application/json",
-        headers={"x-forecast-snapshot-secret": secret},
+        headers=headers,
     )
 
 
@@ -424,22 +428,20 @@ def test_record_forecast_snapshot_returns_record(mock_insert, client):
 
 
 @patch("schema.insert_forecast_snapshot", return_value=1)
-def test_record_forecast_snapshot_has_no_user_id_when_logged_out(mock_insert, client):
+def test_record_forecast_snapshot_rejects_logged_out_visitor(mock_insert, client):
+    # An ownerless snapshot would be indistinguishable from an Archived Snapshot.
     vars = {"historyCount": 240, "points": [], "model": "AutoETS"}
-    _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars)
-    assert mock_insert.call_args[0][4] is None
+    response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars, sub=None)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("must be logged in" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
 
 
 @patch("schema.insert_forecast_snapshot", return_value=1)
 def test_record_forecast_snapshot_captures_user_id_when_logged_in(mock_insert, client):
-    token = _make_token(sub="user-123")
     vars = {"historyCount": 240, "points": [], "model": "AutoETS"}
-    response = client.post(
-        "/price",
-        data=json.dumps({"query": RECORD_FORECAST_SNAPSHOT_MUTATION, "variables": vars}),
-        content_type="application/json",
-        headers={"x-forecast-snapshot-secret": TEST_SNAPSHOT_SECRET, "Authorization": f"Bearer {token}"},
-    )
+    response = _gql_snapshot_write(client, RECORD_FORECAST_SNAPSHOT_MUTATION, vars, sub="user-123")
     assert response.status_code == 200
     assert mock_insert.call_args[0][4] == "user-123"
 
@@ -505,6 +507,21 @@ def test_delete_forecast_snapshot_rejects_wrong_secret(mock_delete, client):
     assert body["data"] is None
     assert any("Invalid or missing credentials" in e["message"] for e in body["errors"])
     mock_delete.assert_not_called()
+
+
+@patch("schema.db_delete_forecast_snapshot", return_value=True)
+def test_delete_forecast_snapshot_rejects_logged_out_visitor(mock_delete, client):
+    response = _gql_snapshot_write(client, DELETE_FORECAST_SNAPSHOT_MUTATION, {"id": 1}, sub=None)
+    body = json.loads(response.data)
+    assert body["data"] is None
+    assert any("must be logged in" in e["message"] for e in body["errors"])
+    mock_delete.assert_not_called()
+
+
+@patch("schema.db_delete_forecast_snapshot", return_value=True)
+def test_delete_forecast_snapshot_scopes_to_the_logged_in_user(mock_delete, client):
+    _gql_snapshot_write(client, DELETE_FORECAST_SNAPSHOT_MUTATION, {"id": 1}, sub="user-456")
+    mock_delete.assert_called_once_with("user-456", 1)
 
 
 ME_QUERY = """

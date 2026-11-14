@@ -411,7 +411,21 @@ def test_delete_forecast_snapshot_returns_true_when_row_deleted():
     cur.rowcount = 1
 
     with patch("database._get_conn", return_value=conn):
-        assert delete_forecast_snapshot(1) is True
+        assert delete_forecast_snapshot("user-123", 1) is True
+
+
+def test_delete_forecast_snapshot_only_matches_the_owners_row():
+    # user_id = %s never matches NULL, so Archived Snapshots can't be deleted.
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.rowcount = 1
+
+    with patch("database._get_conn", return_value=conn):
+        delete_forecast_snapshot("user-123", 1)
+
+    sql, params = cur.execute.call_args[0]
+    assert "user_id = %s" in sql
+    assert params == (1, "user-123")
 
 
 def test_delete_forecast_snapshot_returns_false_when_no_row_deleted():
@@ -420,13 +434,13 @@ def test_delete_forecast_snapshot_returns_false_when_no_row_deleted():
     cur.rowcount = 0
 
     with patch("database._get_conn", return_value=conn):
-        assert delete_forecast_snapshot(999) is False
+        assert delete_forecast_snapshot("user-123", 999) is False
 
 
 def test_delete_forecast_snapshot_raises_on_connection_failure():
     with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
         with pytest.raises(RuntimeError, match="Unable to delete forecast snapshot"):
-            delete_forecast_snapshot(1)
+            delete_forecast_snapshot("user-123", 1)
 
 
 VALID_WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"

@@ -96,14 +96,17 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
                   >
                     {isExpanded ? "Hide" : "View"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(snapshot.id)}
-                    disabled={deletingId === snapshot.id}
-                    className="rounded px-3 py-1 text-sm font-medium bg-white text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {deletingId === snapshot.id ? "Deleting…" : "Delete"}
-                  </button>
+                  {/* Listed owned snapshots are always the viewer's own; ownerless ones are Archived. */}
+                  {snapshot.userId !== null && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(snapshot.id)}
+                      disabled={deletingId === snapshot.id}
+                      className="rounded px-3 py-1 text-sm font-medium bg-white text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deletingId === snapshot.id ? "Deleting…" : "Delete"}
+                    </button>
+                  )}
                 </div>
               </div>
               {isExpanded && (

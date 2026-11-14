@@ -152,12 +152,23 @@ export async function saveForecastSnapshot(
 }
 
 export async function deleteForecastSnapshot(id: number): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // The backend only deletes the caller's own Saved Snapshots.
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    [FORECAST_SNAPSHOT_SECRET_HEADER]: process.env.FORECAST_SNAPSHOT_SECRET ?? "",
+  };
+  if (session?.access_token) {
+    headers["Authorization"] = `Bearer ${session.access_token}`;
+  }
+
   const response = await fetch(`${process.env.BACKEND_URL}/price`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      [FORECAST_SNAPSHOT_SECRET_HEADER]: process.env.FORECAST_SNAPSHOT_SECRET ?? "",
-    },
+    headers,
     body: JSON.stringify({ query: DELETE_FORECAST_SNAPSHOT_MUTATION, variables: { id } }),
     cache: "no-store",
   });

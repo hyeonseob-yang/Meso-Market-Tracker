@@ -15,6 +15,7 @@ import {
   Tooltip,
 } from "chart.js";
 import "chartjs-adapter-date-fns";
+import Link from "next/link";
 import { Line } from "react-chartjs-2";
 
 import { fetchPrices } from "../actions";
@@ -43,7 +44,13 @@ const WINDOWS = [
 
 type WindowLabel = (typeof WINDOWS)[number]["label"];
 
-export default function AverageChart({ initialPrices }: { initialPrices: PriceRow[] }) {
+export default function AverageChart({
+  initialPrices,
+  isLoggedIn,
+}: {
+  initialPrices: PriceRow[];
+  isLoggedIn: boolean;
+}) {
   const [selected, setSelected] = useState<WindowLabel>("1M");
   const [prices, setPrices] = useState(initialPrices);
   const [showForecast, setShowForecast] = useState(false);
@@ -119,16 +126,21 @@ export default function AverageChart({ initialPrices }: { initialPrices: PriceRo
           ))}
         </div>
         <div className="flex items-center gap-4">
-          {showForecast && forecast && forecast.points.length > 0 && (
-            <button
-              type="button"
-              onClick={handleSaveSnapshot}
-              disabled={isSaving}
-              className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              {isSaving ? "Saving…" : justSaved ? "Saved ✓" : "Save Snapshot"}
-            </button>
-          )}
+          {showForecast && forecast && forecast.points.length > 0 &&
+            (isLoggedIn ? (
+              <button
+                type="button"
+                onClick={handleSaveSnapshot}
+                disabled={isSaving}
+                className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                {isSaving ? "Saving…" : justSaved ? "Saved ✓" : "Save Snapshot"}
+              </button>
+            ) : (
+              <Link href="/login" className="text-sm font-medium text-blue-700 hover:underline">
+                Log in to save a snapshot
+              </Link>
+            ))}
           <button
             type="button"
             onClick={() => setShowForecast((v) => !v)}

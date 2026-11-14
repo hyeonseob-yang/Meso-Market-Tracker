@@ -318,13 +318,14 @@ def _row_to_forecast_snapshot_record(row) -> ForecastSnapshotRecord:
     )
 
 
-def delete_forecast_snapshot(id: int) -> bool:
-    sql = "DELETE FROM forecast_snapshot WHERE id = %s"
+def delete_forecast_snapshot(user_id: str, id: int) -> bool:
+    # Archived Snapshots (user_id IS NULL) never match, so can't be deleted.
+    sql = "DELETE FROM forecast_snapshot WHERE id = %s AND user_id = %s"
 
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
-            cur.execute(sql, (id,))
+            cur.execute(sql, (id, user_id))
             deleted = cur.rowcount > 0
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:

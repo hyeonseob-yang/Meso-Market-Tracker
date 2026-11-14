@@ -156,7 +156,7 @@ describe("saveForecastSnapshot", () => {
     expect(fetchMock.mock.calls[0][1].headers["x-forecast-snapshot-secret"]).toBe("test-secret");
   });
 
-  it("attaches the Authorization header when a session exists, so the backend can attribute the snapshot to a user", async () => {
+  it("attaches the Authorization header when a session exists, since the backend requires a logged-in owner", async () => {
     mockSupabaseSession("test-token");
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -214,6 +214,20 @@ describe("deleteForecastSnapshot", () => {
     await deleteForecastSnapshot(1);
 
     expect(fetchMock.mock.calls[0][1].headers["x-forecast-snapshot-secret"]).toBe("test-secret");
+  });
+
+  it("attaches the Authorization header when a session exists, so the backend can check ownership", async () => {
+    mockSupabaseSession("test-token");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: { deleteForecastSnapshot: true } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await deleteForecastSnapshot(1);
+
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer test-token");
   });
 
   it("returns false when the backend responds with an HTTP error", async () => {

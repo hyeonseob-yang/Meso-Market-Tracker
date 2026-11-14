@@ -52,8 +52,7 @@ class Mutation:
         model_params: JSON | None = None,
     ) -> ForecastSnapshotRecord:
         _check_forecast_snapshot_write_auth(info)
-        user = get_current_user(info)
-        user_id = user["id"] if user else None
+        user_id = _require_user(info)["id"]
         created_at = datetime.now(timezone.utc).isoformat()
         snapshot_id = insert_forecast_snapshot(history_count, points, model, model_params, user_id)
         return ForecastSnapshotRecord(
@@ -69,7 +68,8 @@ class Mutation:
     @strawberry.mutation
     def delete_forecast_snapshot(self, info: Info, id: int) -> bool:
         _check_forecast_snapshot_write_auth(info)
-        return db_delete_forecast_snapshot(id)
+        user = _require_user(info)
+        return db_delete_forecast_snapshot(user["id"], id)
 
     @strawberry.mutation
     def create_alert_subscription(
