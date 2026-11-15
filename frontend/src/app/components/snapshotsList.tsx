@@ -15,7 +15,7 @@ import {
   horizonLabel,
 } from "./snapshotPriceDerivation";
 
-export default function PredictionsList({ initialSnapshots }: { initialSnapshots: ForecastSnapshotSummary[] }) {
+export default function SnapshotsList({ initialSnapshots }: { initialSnapshots: ForecastSnapshotSummary[] }) {
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);

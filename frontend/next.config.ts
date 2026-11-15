@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: process.env.DEV_ALLOWED_ORIGIN ? [process.env.DEV_ALLOWED_ORIGIN] : undefined,
   // Default bottom-left collides with the nav drawer's own login/logout footer.
   devIndicators: { position: "bottom-right" },
+  // Old URL for the Forecast Snapshots page, kept for existing bookmarks.
+  async redirects() {
+    return [{ source: "/predictions", destination: "/snapshots", permanent: true }];
+  },
 };
 
 export default nextConfig;
