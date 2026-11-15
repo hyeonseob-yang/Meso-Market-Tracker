@@ -153,9 +153,9 @@ def _check_breakpoints(data: dict, subscriptions: list[dict]) -> None:
                 continue
 
         if crossed_high:
-            verb, threshold = ("crossed above" if first_time else "is still above"), high
+            verb, threshold = ("is above" if first_time else "is still above"), high
         else:
-            verb, threshold = ("crossed below" if first_time else "is still below"), low
+            verb, threshold = ("is below" if first_time else "is still below"), low
 
         _notify_webhook(
             sub["webhook_url"], f"Meso Market alert '{sub['name']}': average {verb} {threshold} (now {latest})."

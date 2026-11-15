@@ -248,7 +248,7 @@ def test_newly_crossed_high_notifies_and_records_it():
     notifications, notified_calls = _run_breakpoints(_price_rows(600), [sub])
     assert len(notifications) == 1
     assert notifications[0][0] == sub["webhook_url"]
-    assert "crossed above" in notifications[0][1]
+    assert "average is above" in notifications[0][1]
     assert notified_calls == [(sub["id"], True)]
 
 
@@ -260,7 +260,7 @@ def test_already_crossed_before_subscription_existed_still_notifies():
     sub = _sub(low=410)
     notifications, notified_calls = _run_breakpoints(_price_rows(392), [sub])
     assert len(notifications) == 1
-    assert "crossed below" in notifications[0][1]
+    assert "average is below" in notifications[0][1]
     assert notified_calls == [(sub["id"], True)]
 
 
