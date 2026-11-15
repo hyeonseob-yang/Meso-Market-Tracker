@@ -142,9 +142,9 @@ export function buildChartData(
 
 export type AccuracyMetrics = { n: number; mae: number; mape: number };
 
-// Matches each actual reading to its nearest predicted point (within half
-// an hour, since predictions are hourly) and averages the error - only
-// over whatever portion of the forecast horizon has actually elapsed.
+// Matches each actual Price Reading to its nearest Forecast point (within
+// half an hour, since Forecast points are hourly) and averages the error -
+// only over whatever portion of the Forecast horizon has actually elapsed.
 export function computeAccuracy(points: ForecastPoint[], actual: PriceRow[]): AccuracyMetrics {
   const MAX_MATCH_MS = 30 * 60 * 1000;
   let sumAbsError = 0;
