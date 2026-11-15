@@ -54,8 +54,8 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
   if (snapshots.length === 0) {
     return (
       <div>
-        <h2 className="text-lg font-medium text-gray-900">Saved Predictions</h2>
-        <p className="mt-2 text-gray-600">No saved predictions yet.</p>
+        <h2 className="text-lg font-medium text-gray-900">Forecast Snapshots</h2>
+        <p className="mt-2 text-gray-600">No Forecast Snapshots yet.</p>
         <p className="mt-1 text-sm text-gray-500">
           Go to the Chart tab, turn on &quot;Show Forecast&quot;, and click &quot;Save Snapshot&quot;.
         </p>
@@ -65,7 +65,7 @@ export default function PredictionsList({ initialSnapshots }: { initialSnapshots
 
   return (
     <div>
-      <h2 className="mb-4 text-lg font-medium text-gray-900">Saved Predictions</h2>
+      <h2 className="mb-4 text-lg font-medium text-gray-900">Forecast Snapshots</h2>
       <div className="space-y-3">
         {snapshots.map((snapshot) => {
           const first = snapshot.points[0];
