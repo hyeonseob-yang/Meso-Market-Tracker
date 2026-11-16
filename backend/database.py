@@ -346,6 +346,9 @@ def _validate_webhook_url(url: str) -> None:
 def _validate_thresholds(high: float | None, low: float | None) -> None:
     if high is None and low is None:
         raise ValueError("Set at least one of high or low - otherwise this alert would never fire.")
+    # Otherwise every Average is above high or below low, so it never clears.
+    if high is not None and low is not None and low >= high:
+        raise ValueError("Low must be below high.")
 
 
 def create_alert_subscription(

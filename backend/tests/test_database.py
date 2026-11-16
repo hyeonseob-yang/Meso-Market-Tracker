@@ -474,6 +474,25 @@ def test_validate_thresholds_rejects_both_null_on_update():
         update_alert_subscription("user-123", 1, "Test", None, None)
 
 
+@pytest.mark.parametrize("high, low", [(300, 500), (400, 400)])
+def test_validate_thresholds_rejects_low_not_below_high_on_create(high, low):
+    with pytest.raises(ValueError, match="Low must be below high"):
+        create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", high, low)
+
+
+@pytest.mark.parametrize("high, low", [(300, 500), (400, 400)])
+def test_validate_thresholds_rejects_low_not_below_high_on_update(high, low):
+    with pytest.raises(ValueError, match="Low must be below high"):
+        update_alert_subscription("user-123", 1, "Test", high, low)
+
+
+@pytest.mark.parametrize("high, low", [(500, 300), (500, None), (None, 300)])
+def test_validate_thresholds_accepts_valid_thresholds(high, low):
+    from database import _validate_thresholds
+
+    _validate_thresholds(high, low)
+
+
 def test_create_alert_subscription_returns_subscription_on_success():
     conn = MagicMock()
     cur = conn.cursor.return_value.__enter__.return_value
