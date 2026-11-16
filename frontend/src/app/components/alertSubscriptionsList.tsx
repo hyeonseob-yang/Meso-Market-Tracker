@@ -23,6 +23,7 @@ export default function AlertSubscriptionsList({
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState<{ id: number; message: string | null } | null>(null);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -50,10 +51,13 @@ export default function AlertSubscriptionsList({
 
   async function handleDelete(id: number) {
     setDeletingId(id);
-    const ok = await deleteAlertSubscription(id);
+    setDeleteError(null);
+    const { ok, error } = await deleteAlertSubscription(id);
     setDeletingId(null);
     if (ok) {
       setSubscriptions((prev) => prev.filter((s) => s.id !== id));
+    } else {
+      setDeleteError({ id, message: error });
     }
   }
 
@@ -150,6 +154,7 @@ export default function AlertSubscriptionsList({
                     </button>
                   </div>
                 </div>
+                {deleteError?.id === sub.id && <p className="mt-2 text-sm text-red-600">{deleteError.message}</p>}
               </div>
             ),
           )}

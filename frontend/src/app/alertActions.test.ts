@@ -186,13 +186,16 @@ describe("updateAlertSubscription", () => {
 });
 
 describe("deleteAlertSubscription", () => {
-  it("returns false when the backend is unreachable", async () => {
+  it("returns a generic error when the backend is unreachable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
-    await expect(deleteAlertSubscription(1)).resolves.toBe(false);
+    await expect(deleteAlertSubscription(1)).resolves.toEqual({
+      ok: false,
+      error: "Something went wrong - try again.",
+    });
   });
 
-  it("returns true on success", async () => {
+  it("returns ok on success", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -202,10 +205,10 @@ describe("deleteAlertSubscription", () => {
       }),
     );
 
-    await expect(deleteAlertSubscription(1)).resolves.toBe(true);
+    await expect(deleteAlertSubscription(1)).resolves.toEqual({ ok: true, error: null });
   });
 
-  it("returns false when the backend responds with an HTTP error", async () => {
+  it("returns a generic error when the backend responds with an HTTP error", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -215,7 +218,39 @@ describe("deleteAlertSubscription", () => {
       }),
     );
 
-    await expect(deleteAlertSubscription(1)).resolves.toBe(false);
+    await expect(deleteAlertSubscription(1)).resolves.toEqual({
+      ok: false,
+      error: "Something went wrong - try again.",
+    });
+  });
+
+  it("returns the backend's message on a GraphQL error, e.g. an expired login", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: null, errors: [{ message: "You must be logged in." }] }),
+      }),
+    );
+
+    await expect(deleteAlertSubscription(1)).resolves.toEqual({ ok: false, error: "You must be logged in." });
+  });
+
+  it("reports a missing Price Alert when nothing was deleted", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: { deleteAlertSubscription: false } }),
+      }),
+    );
+
+    await expect(deleteAlertSubscription(1)).resolves.toEqual({
+      ok: false,
+      error: "That Price Alert no longer exists.",
+    });
   });
 
   it("attaches the Authorization header when a session exists", async () => {

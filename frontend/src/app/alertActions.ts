@@ -128,24 +128,28 @@ export async function updateAlertSubscription(
   return { subscription: data.updateAlertSubscription as AlertSubscription, error: null };
 }
 
-export async function deleteAlertSubscription(id: number): Promise<boolean> {
+export async function deleteAlertSubscription(id: number): Promise<{ ok: boolean; error: string | null }> {
   const response = await postToBackend(await authHeaders(), {
     query: DELETE_ALERT_SUBSCRIPTION_MUTATION,
     variables: { id },
   });
 
-  if (!response) return false;
+  if (!response) return { ok: false, error: "Something went wrong - try again." };
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
-    return false;
+    return { ok: false, error: "Something went wrong - try again." };
   }
 
   const { data, errors } = await response.json();
 
   if (errors) {
     await logError("GraphQL errors:", errors);
-    return false;
+    return { ok: false, error: errors[0]?.message ?? "Something went wrong - try again." };
   }
 
-  return Boolean(data?.deleteAlertSubscription);
+  if (!data?.deleteAlertSubscription) {
+    return { ok: false, error: "That Price Alert no longer exists." };
+  }
+
+  return { ok: true, error: null };
 }
