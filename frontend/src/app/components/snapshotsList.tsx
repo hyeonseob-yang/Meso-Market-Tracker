@@ -19,6 +19,7 @@ export default function SnapshotsList({ initialSnapshots }: { initialSnapshots: 
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState<{ id: number; message: string | null } | null>(null);
   const [allPrices, setAllPrices] = useState<PriceRow[] | null>(null);
   // Guards against re-fetching on every expand.
   const pricesFetchStarted = useRef(false);
@@ -37,11 +38,14 @@ export default function SnapshotsList({ initialSnapshots }: { initialSnapshots: 
 
   async function handleDelete(id: number) {
     setDeletingId(id);
-    const ok = await deleteForecastSnapshot(id);
+    setDeleteError(null);
+    const { ok, error } = await deleteForecastSnapshot(id);
     setDeletingId(null);
     if (ok) {
       setSnapshots(await listForecastSnapshots());
       if (expandedId === id) setExpandedId(null);
+    } else {
+      setDeleteError({ id, message: error });
     }
   }
 
@@ -109,6 +113,9 @@ export default function SnapshotsList({ initialSnapshots }: { initialSnapshots: 
                   )}
                 </div>
               </div>
+              {deleteError?.id === snapshot.id && (
+                <p className="mt-2 text-sm text-red-600">{deleteError.message}</p>
+              )}
               {isExpanded && (
                 <div className="mt-4">
                   <SnapshotChart

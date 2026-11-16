@@ -58,6 +58,7 @@ export default function AverageChart({
   const [forecastLoading, setForecastLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Fetched on mount, independent of showForecast.
@@ -88,19 +89,22 @@ export default function AverageChart({
   async function handleSaveSnapshot() {
     if (!forecast) return;
     setIsSaving(true);
+    setSaveError(null);
     // forecast.historyCount is how many actual training records the model
     // was fit on (manual/test entries already excluded) - not `prices`,
     // which is whatever window is currently displayed and may include those.
-    const saved = await saveForecastSnapshot(
+    const { snapshot, error } = await saveForecastSnapshot(
       forecast.historyCount,
       forecast.points,
       forecast.model,
       forecast.modelParams,
     );
     setIsSaving(false);
-    if (saved) {
+    if (snapshot) {
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2000);
+    } else {
+      setSaveError(error);
     }
   }
 
@@ -128,14 +132,17 @@ export default function AverageChart({
         <div className="flex items-center gap-4">
           {showForecast && forecast && forecast.points.length > 0 &&
             (isLoggedIn ? (
-              <button
-                type="button"
-                onClick={handleSaveSnapshot}
-                disabled={isSaving}
-                className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-              >
-                {isSaving ? "Saving…" : justSaved ? "Saved ✓" : "Save Snapshot"}
-              </button>
+              <>
+                {saveError && <span className="text-sm text-red-600">{saveError}</span>}
+                <button
+                  type="button"
+                  onClick={handleSaveSnapshot}
+                  disabled={isSaving}
+                  className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSaving ? "Saving…" : justSaved ? "Saved ✓" : "Save Snapshot"}
+                </button>
+              </>
             ) : (
               <Link href="/login" className="text-sm font-medium text-blue-700 hover:underline">
                 Log in to save a snapshot

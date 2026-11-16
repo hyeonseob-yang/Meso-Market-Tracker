@@ -183,7 +183,7 @@ describe("saveForecastSnapshot", () => {
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
   });
 
-  it("returns null when the backend responds with an HTTP error", async () => {
+  it("returns a generic error when the backend responds with an HTTP error", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -193,7 +193,26 @@ describe("saveForecastSnapshot", () => {
       }),
     );
 
-    await expect(saveForecastSnapshot(0, [], "AutoETS", null)).resolves.toBeNull();
+    await expect(saveForecastSnapshot(0, [], "AutoETS", null)).resolves.toEqual({
+      snapshot: null,
+      error: "Something went wrong - try again.",
+    });
+  });
+
+  it("returns the backend's message on a GraphQL error, e.g. an expired login", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: null, errors: [{ message: "You must be logged in." }] }),
+      }),
+    );
+
+    await expect(saveForecastSnapshot(0, [], "AutoETS", null)).resolves.toEqual({
+      snapshot: null,
+      error: "You must be logged in.",
+    });
   });
 });
 
@@ -230,7 +249,7 @@ describe("deleteForecastSnapshot", () => {
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer test-token");
   });
 
-  it("returns false when the backend responds with an HTTP error", async () => {
+  it("returns a generic error when the backend responds with an HTTP error", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -240,6 +259,38 @@ describe("deleteForecastSnapshot", () => {
       }),
     );
 
-    await expect(deleteForecastSnapshot(1)).resolves.toBe(false);
+    await expect(deleteForecastSnapshot(1)).resolves.toEqual({
+      ok: false,
+      error: "Something went wrong - try again.",
+    });
+  });
+
+  it("returns the backend's message on a GraphQL error, e.g. an expired login", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: null, errors: [{ message: "You must be logged in." }] }),
+      }),
+    );
+
+    await expect(deleteForecastSnapshot(1)).resolves.toEqual({ ok: false, error: "You must be logged in." });
+  });
+
+  it("reports a missing snapshot when nothing was deleted", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: { deleteForecastSnapshot: false } }),
+      }),
+    );
+
+    await expect(deleteForecastSnapshot(1)).resolves.toEqual({
+      ok: false,
+      error: "That snapshot no longer exists.",
+    });
   });
 });

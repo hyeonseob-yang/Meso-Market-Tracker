@@ -25,6 +25,8 @@ export type ForecastSnapshotSummary = {
 // client-side from a shared price fetch.
 export type ForecastSnapshot = ForecastSnapshotSummary & { history: PriceRow[] };
 
+const GENERIC_ERROR = "Something went wrong - try again.";
+
 const FORECAST_QUERY = `
   query { forecast { model modelParams points historyCount } }
 `;
@@ -112,7 +114,7 @@ export async function saveForecastSnapshot(
   points: ForecastPoint[],
   model: string,
   modelParams: Record<string, unknown> | null,
-): Promise<ForecastSnapshotSummary | null> {
+): Promise<{ snapshot: ForecastSnapshotSummary | null; error: string | null }> {
   const supabase = await createClient();
   const {
     data: { session },
@@ -138,20 +140,20 @@ export async function saveForecastSnapshot(
 
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
-    return null;
+    return { snapshot: null, error: GENERIC_ERROR };
   }
 
   const { data, errors } = await response.json();
 
   if (errors || !data?.recordForecastSnapshot) {
     await logError("GraphQL errors:", errors);
-    return null;
+    return { snapshot: null, error: errors?.[0]?.message ?? GENERIC_ERROR };
   }
 
-  return data.recordForecastSnapshot as ForecastSnapshotSummary;
+  return { snapshot: data.recordForecastSnapshot as ForecastSnapshotSummary, error: null };
 }
 
-export async function deleteForecastSnapshot(id: number): Promise<boolean> {
+export async function deleteForecastSnapshot(id: number): Promise<{ ok: boolean; error: string | null }> {
   const supabase = await createClient();
   const {
     data: { session },
@@ -175,15 +177,19 @@ export async function deleteForecastSnapshot(id: number): Promise<boolean> {
 
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
-    return false;
+    return { ok: false, error: GENERIC_ERROR };
   }
 
   const { data, errors } = await response.json();
 
   if (errors) {
     await logError("GraphQL errors:", errors);
-    return false;
+    return { ok: false, error: errors[0]?.message ?? GENERIC_ERROR };
   }
 
-  return Boolean(data?.deleteForecastSnapshot);
+  if (!data?.deleteForecastSnapshot) {
+    return { ok: false, error: "That snapshot no longer exists." };
+  }
+
+  return { ok: true, error: null };
 }
