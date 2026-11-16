@@ -1,5 +1,6 @@
 "use server";
 
+import { postToBackend } from "@/lib/backend";
 import { logError } from "@/lib/cloudwatch";
 import { createClient } from "@/lib/supabase/server";
 
@@ -79,16 +80,12 @@ export async function createAlertSubscription(
   high: number | null,
   low: number | null,
 ): Promise<{ subscription: AlertSubscription | null; error: string | null }> {
-  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
-    method: "POST",
-    headers: await authHeaders(),
-    body: JSON.stringify({
-      query: CREATE_ALERT_SUBSCRIPTION_MUTATION,
-      variables: { webhookUrl, name, high, low },
-    }),
-    cache: "no-store",
+  const response = await postToBackend(await authHeaders(), {
+    query: CREATE_ALERT_SUBSCRIPTION_MUTATION,
+    variables: { webhookUrl, name, high, low },
   });
 
+  if (!response) return { subscription: null, error: "Something went wrong - try again." };
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
     return { subscription: null, error: "Something went wrong - try again." };
@@ -110,16 +107,12 @@ export async function updateAlertSubscription(
   high: number | null,
   low: number | null,
 ): Promise<{ subscription: AlertSubscription | null; error: string | null }> {
-  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
-    method: "POST",
-    headers: await authHeaders(),
-    body: JSON.stringify({
-      query: UPDATE_ALERT_SUBSCRIPTION_MUTATION,
-      variables: { id, name, high, low },
-    }),
-    cache: "no-store",
+  const response = await postToBackend(await authHeaders(), {
+    query: UPDATE_ALERT_SUBSCRIPTION_MUTATION,
+    variables: { id, name, high, low },
   });
 
+  if (!response) return { subscription: null, error: "Something went wrong - try again." };
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
     return { subscription: null, error: "Something went wrong - try again." };
@@ -136,13 +129,12 @@ export async function updateAlertSubscription(
 }
 
 export async function deleteAlertSubscription(id: number): Promise<boolean> {
-  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
-    method: "POST",
-    headers: await authHeaders(),
-    body: JSON.stringify({ query: DELETE_ALERT_SUBSCRIPTION_MUTATION, variables: { id } }),
-    cache: "no-store",
+  const response = await postToBackend(await authHeaders(), {
+    query: DELETE_ALERT_SUBSCRIPTION_MUTATION,
+    variables: { id },
   });
 
+  if (!response) return false;
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
     return false;

@@ -71,6 +71,15 @@ describe("fetchMyAlertSubscriptions", () => {
 });
 
 describe("createAlertSubscription", () => {
+  it("returns a generic error when the backend is unreachable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await expect(createAlertSubscription("https://discord.com/api/webhooks/1/a", "Test", 500, null)).resolves.toEqual({
+      subscription: null,
+      error: "Something went wrong - try again.",
+    });
+  });
+
   it("returns the subscription on success", async () => {
     const subscription = { id: 1, webhookUrl: "https://discord.com/api/webhooks/1/a", name: "Test", high: null, low: null };
     vi.stubGlobal(
@@ -137,6 +146,15 @@ describe("createAlertSubscription", () => {
 });
 
 describe("updateAlertSubscription", () => {
+  it("returns a generic error when the backend is unreachable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await expect(updateAlertSubscription(1, "Test", 500, null)).resolves.toEqual({
+      subscription: null,
+      error: "Something went wrong - try again.",
+    });
+  });
+
   it("returns the updated subscription on success", async () => {
     const subscription = { id: 1, webhookUrl: "https://discord.com/api/webhooks/1/a", name: "New name", high: 500, low: null };
     vi.stubGlobal(
@@ -168,6 +186,12 @@ describe("updateAlertSubscription", () => {
 });
 
 describe("deleteAlertSubscription", () => {
+  it("returns false when the backend is unreachable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await expect(deleteAlertSubscription(1)).resolves.toBe(false);
+  });
+
   it("returns true on success", async () => {
     vi.stubGlobal(
       "fetch",

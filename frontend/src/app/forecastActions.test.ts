@@ -142,6 +142,15 @@ describe("saveForecastSnapshot", () => {
     vi.unstubAllGlobals();
   });
 
+  it("returns a generic error when the backend is unreachable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await expect(saveForecastSnapshot(0, [], "AutoETS", null)).resolves.toEqual({
+      snapshot: null,
+      error: "Something went wrong - try again.",
+    });
+  });
+
   it("attaches the forecast-snapshot secret header", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -219,6 +228,15 @@ describe("saveForecastSnapshot", () => {
 describe("deleteForecastSnapshot", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("returns a generic error when the backend is unreachable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await expect(deleteForecastSnapshot(1)).resolves.toEqual({
+      ok: false,
+      error: "Something went wrong - try again.",
+    });
   });
 
   it("attaches the forecast-snapshot secret header", async () => {

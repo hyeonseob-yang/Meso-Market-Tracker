@@ -1,5 +1,6 @@
 "use server";
 
+import { postToBackend } from "@/lib/backend";
 import { logError } from "@/lib/cloudwatch";
 import { createClient } from "@/lib/supabase/server";
 import type { ForecastPoint, PriceRow } from "./components/chartConfig";
@@ -128,16 +129,12 @@ export async function saveForecastSnapshot(
     headers["Authorization"] = `Bearer ${session.access_token}`;
   }
 
-  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      query: RECORD_FORECAST_SNAPSHOT_MUTATION,
-      variables: { historyCount, points, model, modelParams },
-    }),
-    cache: "no-store",
+  const response = await postToBackend(headers, {
+    query: RECORD_FORECAST_SNAPSHOT_MUTATION,
+    variables: { historyCount, points, model, modelParams },
   });
 
+  if (!response) return { snapshot: null, error: GENERIC_ERROR };
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
     return { snapshot: null, error: GENERIC_ERROR };
@@ -168,13 +165,9 @@ export async function deleteForecastSnapshot(id: number): Promise<{ ok: boolean;
     headers["Authorization"] = `Bearer ${session.access_token}`;
   }
 
-  const response = await fetch(`${process.env.BACKEND_URL}/price`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query: DELETE_FORECAST_SNAPSHOT_MUTATION, variables: { id } }),
-    cache: "no-store",
-  });
+  const response = await postToBackend(headers, { query: DELETE_FORECAST_SNAPSHOT_MUTATION, variables: { id } });
 
+  if (!response) return { ok: false, error: GENERIC_ERROR };
   if (!response.ok) {
     await logError("backend error", response.status, await response.text());
     return { ok: false, error: GENERIC_ERROR };
