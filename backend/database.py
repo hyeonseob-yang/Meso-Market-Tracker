@@ -378,13 +378,13 @@ def create_alert_subscription(
         except Exception:
             pass
         logger.error("create_alert_subscription rejected invalid data: %s", _sanitize(str(error)))
-        raise ValueError("Alert subscription data is invalid.") from error
+        raise ValueError("Price Alert data is invalid.") from error
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("create_alert_subscription failed: %s", _sanitize(str(error)))
-        raise RuntimeError("Unable to create the alert subscription right now.") from error
+        raise RuntimeError("Unable to create the Price Alert right now.") from error
 
     if not row:
-        raise RuntimeError("Unable to create the alert subscription right now.")
+        raise RuntimeError("Unable to create the Price Alert right now.")
 
     return _row_to_alert_subscription(row)
 
@@ -413,10 +413,10 @@ def update_alert_subscription(
         except Exception:
             pass
         logger.error("update_alert_subscription rejected invalid data: %s", _sanitize(str(error)))
-        raise ValueError("Alert subscription data is invalid.") from error
+        raise ValueError("Price Alert data is invalid.") from error
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("update_alert_subscription failed: %s", _sanitize(str(error)))
-        raise RuntimeError("Unable to update the alert subscription right now.") from error
+        raise RuntimeError("Unable to update the Price Alert right now.") from error
 
     return _row_to_alert_subscription(row) if row else None
 
@@ -432,7 +432,7 @@ def delete_alert_subscription(user_id: str, id: int) -> bool:
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("delete_alert_subscription failed: %s", _sanitize(str(error)))
-        raise RuntimeError("Unable to delete the alert subscription right now.") from error
+        raise RuntimeError("Unable to delete the Price Alert right now.") from error
 
     return deleted
 

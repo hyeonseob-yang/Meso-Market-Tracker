@@ -664,7 +664,7 @@ def test_update_alert_subscription_raises_when_not_found_or_not_yours(mock_updat
     response = _gql_as_user(client, UPDATE_ALERT_SUBSCRIPTION_MUTATION, vars)
     body = json.loads(response.data)
     assert body["data"] is None
-    assert any("No alert subscription" in e["message"] for e in body["errors"])
+    assert any("That Price Alert no longer exists" in e["message"] for e in body["errors"])
 
 
 @patch("schema.db_update_alert_subscription", return_value=SAMPLE_ALERT_SUBSCRIPTION)

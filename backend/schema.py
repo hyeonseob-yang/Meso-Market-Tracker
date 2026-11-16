@@ -85,7 +85,7 @@ class Mutation:
         user = _require_user(info)
         subscription = db_update_alert_subscription(user["id"], id, name, high, low)
         if subscription is None:
-            raise ValueError("No alert subscription with that id.")
+            raise ValueError("That Price Alert no longer exists.")
         return subscription
 
     @strawberry.mutation

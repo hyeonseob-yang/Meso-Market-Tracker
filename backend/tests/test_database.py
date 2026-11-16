@@ -539,7 +539,7 @@ def test_create_alert_subscription_raises_value_error_on_other_invalid_data(pg_e
     cur.execute.side_effect = pg_error("value too long")
 
     with patch("database._get_conn", return_value=conn):
-        with pytest.raises(ValueError, match="Alert subscription data is invalid"):
+        with pytest.raises(ValueError, match="Price Alert data is invalid"):
             create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", 500.0, None)
 
     conn.rollback.assert_called_once()
@@ -547,7 +547,7 @@ def test_create_alert_subscription_raises_value_error_on_other_invalid_data(pg_e
 
 def test_create_alert_subscription_raises_on_connection_failure():
     with patch("database._get_conn", side_effect=OSError("could not connect to server: Connection refused")):
-        with pytest.raises(RuntimeError, match="Unable to create the alert subscription"):
+        with pytest.raises(RuntimeError, match="Unable to create the Price Alert"):
             create_alert_subscription("user-123", VALID_WEBHOOK_URL, "Test", 500.0, None)
 
 
