@@ -60,6 +60,15 @@ _Avoid_: daily backup
 **Saved Snapshot**:
 A Forecast Snapshot taken manually by a logged-in user; always owned, and visible only to that user.
 
+## Trading
+
+**Trade**:
+A user's own record of buying or selling meso at the price they actually got, at a time they choose. Private to that user and never market data: never a Price Reading, never shown on the market chart, never used to train a Forecast. A fixed record of the past: a wrong Trade is deleted and logged again, not edited.
+_Avoid_: transaction, order, entry
+
+**Trade Log**:
+A user's list of their own Trades.
+
 ## Alerts
 
 **Price Alert**:
