@@ -78,6 +78,10 @@ _Avoid_: cost, value
 The 1% of a sell Trade's Total that the market keeps. Buy Trades have no Fee.
 _Avoid_: tax, commission
 
+**Net**:
+What a sell Trade actually brings in: its Total minus its Fee.
+_Avoid_: proceeds, after-fee total
+
 **Trade Log**:
 A user's list of their own Trades.
 
