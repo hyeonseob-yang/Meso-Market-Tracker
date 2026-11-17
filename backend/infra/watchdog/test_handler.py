@@ -293,7 +293,7 @@ def test_recently_notified_does_not_renotify_within_reminder_interval():
 
 
 def test_still_crossed_after_reminder_interval_notifies_again():
-    sub = _sub(high=500, last_alerted_minutes_ago=handler.REMINDER_INTERVAL_MINUTES + 10)
+    sub = _sub(high=500, last_alerted_minutes_ago=handler.PRICE_ALERT_REMINDER_MINUTES + 10)
     notifications, notified_calls = _run_breakpoints(_price_rows(600), [sub])
     assert len(notifications) == 1
     assert "is still above" in notifications[0][1]
