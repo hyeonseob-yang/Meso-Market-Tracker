@@ -15,6 +15,8 @@ WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
 ALERT_SUBSCRIPTIONS_URL = os.environ["ALERT_SUBSCRIPTIONS_URL"]
 WATCHDOG_SECRET = os.environ["WATCHDOG_SECRET"]
 REMINDER_INTERVAL_MINUTES = 24 * 60
+# Hourly staleness checks re-alert this often for as long as data stays stale.
+STALE_REPEAT_MINUTES = 6 * 60
 QUERY = (
     '{"query": "{ latestPrices(limit: 2) { datetime average } forecast { updatedAt } '
     'forecastSnapshots(limit: 1) { createdAt } }"}'
@@ -45,6 +47,18 @@ def _notify_webhook(url: str, text: str) -> None:
     _post(url, json.dumps({"content": text}))
 
 
+def _duration(minutes: float) -> str:
+    hours = minutes / 60
+    return f"{hours:.0f} hours" if hours < 48 else f"{hours / 24:.1f} days"
+
+
+def _stale_alert_due(age: float) -> bool:
+    """For hourly checks: true at the first check an hour or more stale, then
+    once every STALE_REPEAT_MINUTES. Each 60 min window catches exactly one
+    hourly check, so no state is needed to avoid duplicates."""
+    return age >= 60 and (age - 60) % STALE_REPEAT_MINUTES < 60
+
+
 def _check_prices(data: dict) -> None:
     rows = data["latestPrices"]
 
@@ -61,14 +75,16 @@ def _check_prices(data: dict) -> None:
         gap = (latest - second_latest).total_seconds() / 60
 
     # Runs hourly at :10, after the Collector's ~:01 post, so the newest row
-    # is ~10 min old when healthy, ~70 after one missed post, ~370 after six.
-    # Each 60 min band catches exactly one hourly check.
-    if 60 <= age < 120:
-        _notify(f"Meso Market: no new row for {age:.0f} min (last at {latest:%H:%M} UTC).")
-    elif 360 <= age < 420:
-        _notify(f"Meso Market: still no new row after {age / 60:.0f} hours.")
+    # is ~10 min old when healthy and ~70 after one missed post.
+    if _stale_alert_due(age):
+        if age < 120:
+            _notify(f"Meso Market: no new row for {age:.0f} min (last at {latest:%H:%M} UTC).")
+        else:
+            _notify(
+                f"Meso Market: still no new row after {_duration(age)} (last at {latest:%Y-%m-%d %H:%M} UTC)."
+            )
     elif age < 60 and gap is not None and gap >= 90:
-        _notify(f"Meso Market: collection resumed after a {gap / 60:.1f} hour gap.")
+        _notify(f"Meso Market: collection resumed after a {_duration(gap)} gap.")
 
 
 def _check_forecast(data: dict) -> None:
@@ -84,12 +100,12 @@ def _check_forecast(data: dict) -> None:
     age = (datetime.now(timezone.utc) - updated_at).total_seconds() / 60
 
     # Precompute runs hourly at :10, this check at :30, so a healthy cache is
-    # ~20 min old, ~80 after one missed run, ~380 after six. Each 60 min band
-    # catches exactly one hourly check.
-    if 60 <= age < 120:
-        _notify(f"Meso Market: forecast cache hasn't refreshed in {age:.0f} min.")
-    elif 360 <= age < 420:
-        _notify(f"Meso Market: forecast cache still stale after {age / 60:.0f} hours.")
+    # ~20 min old and ~80 after one missed run.
+    if _stale_alert_due(age):
+        if age < 120:
+            _notify(f"Meso Market: forecast cache hasn't refreshed in {age:.0f} min.")
+        else:
+            _notify(f"Meso Market: forecast cache still stale after {_duration(age)}.")
 
 
 def _check_snapshot(data: dict) -> None:
@@ -102,14 +118,14 @@ def _check_snapshot(data: dict) -> None:
     created_at = datetime.fromisoformat(snapshots[0]["createdAt"])
     age = (datetime.now(timezone.utc) - created_at).total_seconds() / 60
 
-    # The archive runs daily at 00:30 UTC, this check 30 min later - a
-    # healthy snapshot is reliably about 30 min old every time, so these
-    # bands (one day late, two days late) need only a generous 1 hour of
-    # slack each, not the wide margin an hourly check would need.
-    if 1410 <= age < 1530:
-        _notify(f"Meso Market: no forecast snapshot archived in {age / 60:.0f} hours.")
-    elif 2850 <= age < 2970:
-        _notify(f"Meso Market: still no forecast snapshot archived after {age / 60:.0f} hours.")
+    # The archive runs daily at 00:30 UTC and this check once a day 30 min
+    # later, so a healthy snapshot is ~30 min old; every daily check alerts
+    # for as long as one is missing.
+    if age >= 1410:
+        if age < 1530:
+            _notify(f"Meso Market: no forecast snapshot archived in {age / 60:.0f} hours.")
+        else:
+            _notify(f"Meso Market: still no forecast snapshot archived after {_duration(age)}.")
 
 
 def _set_notified(subscription_id: int, notified: bool) -> None:

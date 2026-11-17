@@ -88,10 +88,21 @@ def test_stale_outside_bands_does_not_renotify():
     assert _run(_rows(130)) == []
 
 
-def test_still_stale_after_six_missed_posts_notifies_again():
-    notifications = _run(_rows(370))
+def test_still_stale_six_hours_after_first_alert_notifies_again():
+    notifications = _run(_rows(430))
     assert len(notifications) == 1
     assert "still no new row" in notifications[0]
+
+
+def test_still_stale_after_days_keeps_notifying_every_six_hours():
+    # 70 + 23 * 360: the 24th alert, ~5.8 days into an outage.
+    notifications = _run(_rows(8350))
+    assert len(notifications) == 1
+    assert "still no new row after 5.8 days" in notifications[0]
+
+
+def test_still_stale_between_reminders_does_not_notify():
+    assert _run(_rows(8410)) == []
 
 
 def test_resumed_after_a_real_gap_notifies():
@@ -158,10 +169,17 @@ def test_stale_forecast_outside_bands_does_not_renotify():
     assert _run(_rows(30, 90), forecast_age_minutes=140, checks="health") == []
 
 
-def test_still_stale_forecast_after_six_missed_runs_notifies_again():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=380, checks="health")
+def test_still_stale_forecast_six_hours_after_first_alert_notifies_again():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=440, checks="health")
     assert len(notifications) == 1
     assert "still stale" in notifications[0]
+
+
+def test_still_stale_forecast_after_days_keeps_notifying():
+    # 80 + 23 * 360
+    notifications = _run(_rows(30, 90), forecast_age_minutes=8360, checks="health")
+    assert len(notifications) == 1
+    assert "still stale after 5.8 days" in notifications[0]
 
 
 def test_missing_forecast_notifies():
@@ -186,8 +204,11 @@ def test_stale_snapshot_in_first_band_notifies_once():
     assert "no forecast snapshot archived in" in notifications[0]
 
 
-def test_stale_snapshot_outside_bands_does_not_renotify():
-    assert _run(_rows(30, 90), snapshot_age_minutes=1800, checks="snapshot") == []
+def test_stale_snapshot_keeps_notifying_every_day():
+    # The 6th daily check after the last archive: 30 + 6 * 1440.
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=8670, checks="snapshot")
+    assert len(notifications) == 1
+    assert "still no forecast snapshot archived after 6.0 days" in notifications[0]
 
 
 def test_still_stale_snapshot_after_two_days_notifies_again():
