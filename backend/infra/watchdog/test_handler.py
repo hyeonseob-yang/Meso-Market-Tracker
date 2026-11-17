@@ -12,6 +12,30 @@ os.environ.setdefault("WATCHDOG_SECRET", "test-watchdog-secret")
 
 import handler  # noqa: E402
 
+MINUTES_PER_DAY = handler.HOURS_PER_DAY * handler.MINUTES_PER_HOUR
+MULTIDAY_OUTAGE_REMINDERS = 23
+
+# Ages each check sees when its job ran on time.
+PRICE_CHECK_LAG_MINUTES = 10
+FORECAST_CHECK_LAG_MINUTES = 20
+SNAPSHOT_CHECK_LAG_MINUTES = 30
+
+PRICE_AGE_ONE_MISSED = PRICE_CHECK_LAG_MINUTES + handler.STALE_AFTER_MINUTES
+PRICE_AGE_NEXT_CHECK = PRICE_AGE_ONE_MISSED + handler.HOURLY_CHECK_MINUTES
+PRICE_AGE_FIRST_REMINDER = PRICE_AGE_ONE_MISSED + handler.STALE_REPEAT_MINUTES
+PRICE_AGE_MULTIDAY_REMINDER = PRICE_AGE_ONE_MISSED + MULTIDAY_OUTAGE_REMINDERS * handler.STALE_REPEAT_MINUTES
+PRICE_AGE_BETWEEN_REMINDERS = PRICE_AGE_MULTIDAY_REMINDER + handler.HOURLY_CHECK_MINUTES
+
+FORECAST_AGE_ONE_MISSED = FORECAST_CHECK_LAG_MINUTES + handler.STALE_AFTER_MINUTES
+FORECAST_AGE_NEXT_CHECK = FORECAST_AGE_ONE_MISSED + handler.HOURLY_CHECK_MINUTES
+FORECAST_AGE_FIRST_REMINDER = FORECAST_AGE_ONE_MISSED + handler.STALE_REPEAT_MINUTES
+FORECAST_AGE_MULTIDAY_REMINDER = FORECAST_AGE_ONE_MISSED + MULTIDAY_OUTAGE_REMINDERS * handler.STALE_REPEAT_MINUTES
+
+SNAPSHOT_AGE_JUST_UNDER_STALE = handler.SNAPSHOT_STALE_AFTER_MINUTES - 1
+SNAPSHOT_AGE_ONE_DAY_MISSED = SNAPSHOT_CHECK_LAG_MINUTES + MINUTES_PER_DAY
+SNAPSHOT_AGE_TWO_DAYS_MISSED = SNAPSHOT_CHECK_LAG_MINUTES + 2 * MINUTES_PER_DAY
+SNAPSHOT_AGE_SIX_DAYS_MISSED = SNAPSHOT_CHECK_LAG_MINUTES + 6 * MINUTES_PER_DAY
+
 
 def _rows(*ages_minutes):
     """Newest-first rows (matching the real latestPrices(limit: 2) query),
@@ -78,31 +102,29 @@ def test_healthy_data_sends_no_notification():
 
 
 def test_stale_after_one_missed_post_notifies_once():
-    notifications = _run(_rows(70))
+    notifications = _run(_rows(PRICE_AGE_ONE_MISSED))
     assert len(notifications) == 1
     assert "no new row for" in notifications[0]
 
 
-def test_stale_outside_bands_does_not_renotify():
-    # ~130 is the next hourly check after the first alert.
-    assert _run(_rows(130)) == []
+def test_stale_at_next_check_does_not_renotify():
+    assert _run(_rows(PRICE_AGE_NEXT_CHECK)) == []
 
 
-def test_still_stale_six_hours_after_first_alert_notifies_again():
-    notifications = _run(_rows(430))
+def test_still_stale_at_first_reminder_notifies_again():
+    notifications = _run(_rows(PRICE_AGE_FIRST_REMINDER))
     assert len(notifications) == 1
     assert "still no new row" in notifications[0]
 
 
-def test_still_stale_after_days_keeps_notifying_every_six_hours():
-    # 70 + 23 * 360: the 24th alert, ~5.8 days into an outage.
-    notifications = _run(_rows(8350))
+def test_still_stale_after_days_keeps_notifying():
+    notifications = _run(_rows(PRICE_AGE_MULTIDAY_REMINDER))
     assert len(notifications) == 1
     assert "still no new row after 5.8 days" in notifications[0]
 
 
 def test_still_stale_between_reminders_does_not_notify():
-    assert _run(_rows(8410)) == []
+    assert _run(_rows(PRICE_AGE_BETWEEN_REMINDERS)) == []
 
 
 def test_resumed_after_a_real_gap_notifies():
@@ -155,29 +177,27 @@ def test_null_data_without_errors_notifies():
 
 
 def test_healthy_forecast_sends_no_notification():
-    assert _run(_rows(30, 90), forecast_age_minutes=20, checks="health") == []
+    assert _run(_rows(30, 90), forecast_age_minutes=FORECAST_CHECK_LAG_MINUTES, checks="health") == []
 
 
 def test_stale_forecast_after_one_missed_run_notifies_once():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=80, checks="health")
+    notifications = _run(_rows(30, 90), forecast_age_minutes=FORECAST_AGE_ONE_MISSED, checks="health")
     assert len(notifications) == 1
     assert "forecast cache hasn't refreshed" in notifications[0]
 
 
-def test_stale_forecast_outside_bands_does_not_renotify():
-    # ~140 is the next hourly check after the first alert.
-    assert _run(_rows(30, 90), forecast_age_minutes=140, checks="health") == []
+def test_stale_forecast_at_next_check_does_not_renotify():
+    assert _run(_rows(30, 90), forecast_age_minutes=FORECAST_AGE_NEXT_CHECK, checks="health") == []
 
 
-def test_still_stale_forecast_six_hours_after_first_alert_notifies_again():
-    notifications = _run(_rows(30, 90), forecast_age_minutes=440, checks="health")
+def test_still_stale_forecast_at_first_reminder_notifies_again():
+    notifications = _run(_rows(30, 90), forecast_age_minutes=FORECAST_AGE_FIRST_REMINDER, checks="health")
     assert len(notifications) == 1
     assert "still stale" in notifications[0]
 
 
 def test_still_stale_forecast_after_days_keeps_notifying():
-    # 80 + 23 * 360
-    notifications = _run(_rows(30, 90), forecast_age_minutes=8360, checks="health")
+    notifications = _run(_rows(30, 90), forecast_age_minutes=FORECAST_AGE_MULTIDAY_REMINDER, checks="health")
     assert len(notifications) == 1
     assert "still stale after 5.8 days" in notifications[0]
 
@@ -189,30 +209,27 @@ def test_missing_forecast_notifies():
 
 
 def test_healthy_snapshot_sends_no_notification():
-    # ~30 min is the expected age every time now - checked once daily, 30
-    # min after the archive job itself.
-    assert _run(_rows(30, 90), snapshot_age_minutes=30, checks="snapshot") == []
+    assert _run(_rows(30, 90), snapshot_age_minutes=SNAPSHOT_CHECK_LAG_MINUTES, checks="snapshot") == []
 
 
 def test_snapshot_just_under_one_day_late_does_not_notify():
-    assert _run(_rows(30, 90), snapshot_age_minutes=1400, checks="snapshot") == []
+    assert _run(_rows(30, 90), snapshot_age_minutes=SNAPSHOT_AGE_JUST_UNDER_STALE, checks="snapshot") == []
 
 
-def test_stale_snapshot_in_first_band_notifies_once():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=1470, checks="snapshot")
+def test_stale_snapshot_after_one_missed_day_notifies():
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=SNAPSHOT_AGE_ONE_DAY_MISSED, checks="snapshot")
     assert len(notifications) == 1
     assert "no forecast snapshot archived in" in notifications[0]
 
 
 def test_stale_snapshot_keeps_notifying_every_day():
-    # The 6th daily check after the last archive: 30 + 6 * 1440.
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=8670, checks="snapshot")
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=SNAPSHOT_AGE_SIX_DAYS_MISSED, checks="snapshot")
     assert len(notifications) == 1
     assert "still no forecast snapshot archived after 6.0 days" in notifications[0]
 
 
 def test_still_stale_snapshot_after_two_days_notifies_again():
-    notifications = _run(_rows(30, 90), snapshot_age_minutes=2910, checks="snapshot")
+    notifications = _run(_rows(30, 90), snapshot_age_minutes=SNAPSHOT_AGE_TWO_DAYS_MISSED, checks="snapshot")
     assert len(notifications) == 1
     assert "still no forecast snapshot archived" in notifications[0]
 
@@ -293,7 +310,7 @@ def test_recently_notified_does_not_renotify_within_reminder_interval():
 
 
 def test_still_crossed_after_reminder_interval_notifies_again():
-    sub = _sub(high=500, last_alerted_minutes_ago=handler.PRICE_ALERT_REMINDER_MINUTES + 10)
+    sub = _sub(high=500, last_alerted_minutes_ago=handler.REMINDER_INTERVAL_MINUTES + 10)
     notifications, notified_calls = _run_breakpoints(_price_rows(600), [sub])
     assert len(notifications) == 1
     assert "is still above" in notifications[0][1]

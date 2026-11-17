@@ -15,22 +15,18 @@ WATCHDOG_SECRET = os.environ["WATCHDOG_SECRET"]
 
 SECONDS_PER_MINUTE = 60
 MINUTES_PER_HOUR = 60
-MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
+HOURS_PER_DAY = 24
 HTTP_TIMEOUT_SECONDS = 20
 
-# How often each monitored job runs; its output is stale once older than this.
-COLLECTOR_INTERVAL_MINUTES = MINUTES_PER_HOUR
-PRECOMPUTE_INTERVAL_MINUTES = MINUTES_PER_HOUR
-ARCHIVE_INTERVAL_MINUTES = MINUTES_PER_DAY
-
-# How often this watchdog's own checks run (see handler()).
+REMINDER_INTERVAL_MINUTES = HOURS_PER_DAY * MINUTES_PER_HOUR
+STALE_REPEAT_MINUTES = 6 * MINUTES_PER_HOUR
 HOURLY_CHECK_MINUTES = MINUTES_PER_HOUR
-DAILY_CHECK_MINUTES = MINUTES_PER_DAY
-
-STALE_REMINDER_MINUTES = 6 * MINUTES_PER_HOUR
-PRICE_ALERT_REMINDER_MINUTES = MINUTES_PER_DAY
+STALE_AFTER_MINUTES = 60
+STALE_FIRST_ALERT_UNTIL_MINUTES = 120
+SNAPSHOT_STALE_AFTER_MINUTES = 1410
+SNAPSHOT_FIRST_ALERT_UNTIL_MINUTES = 1530
 MISSED_READING_GAP_MINUTES = 90
-SHOW_DAYS_AFTER_MINUTES = 2 * MINUTES_PER_DAY
+SHOW_DAYS_AFTER_HOURS = 48
 
 QUERY = (
     '{"query": "{ latestPrices(limit: 2) { datetime average } forecast { updatedAt } '
@@ -62,25 +58,16 @@ def _notify_webhook(url: str, text: str) -> None:
     _post(url, json.dumps({"content": text}))
 
 
-def _minutes_since(timestamp: str) -> float:
-    elapsed = datetime.now(timezone.utc) - datetime.fromisoformat(timestamp)
-    return elapsed.total_seconds() / SECONDS_PER_MINUTE
-
-
 def _duration(minutes: float) -> str:
-    if minutes < SHOW_DAYS_AFTER_MINUTES:
-        return f"{minutes / MINUTES_PER_HOUR:.0f} hours"
-    return f"{minutes / MINUTES_PER_DAY:.1f} days"
+    hours = minutes / MINUTES_PER_HOUR
+    return f"{hours:.0f} hours" if hours < SHOW_DAYS_AFTER_HOURS else f"{hours / HOURS_PER_DAY:.1f} days"
 
 
-def _stale_alert_due(age: float, stale_after: float, check_interval: float, reminder_interval: float) -> bool:
-    """True at the first check after going stale, then once per reminder_interval.
-    Each window is one check_interval wide, so exactly one check falls in it."""
-    return age >= stale_after and (age - stale_after) % reminder_interval < check_interval
-
-
-def _is_first_stale_alert(age: float, stale_after: float, check_interval: float) -> bool:
-    return age < stale_after + check_interval
+def _stale_alert_due(age: float) -> bool:
+    """For hourly checks: true at the first check STALE_AFTER_MINUTES stale, then
+    once every STALE_REPEAT_MINUTES. Each window is HOURLY_CHECK_MINUTES wide,
+    so exactly one hourly check falls in it and no state is needed."""
+    return age >= STALE_AFTER_MINUTES and (age - STALE_AFTER_MINUTES) % STALE_REPEAT_MINUTES < HOURLY_CHECK_MINUTES
 
 
 def _check_prices(data: dict) -> None:
@@ -91,21 +78,21 @@ def _check_prices(data: dict) -> None:
         return
 
     latest = datetime.fromisoformat(rows[0]["datetime"])
-    age = _minutes_since(rows[0]["datetime"])
+    age = (datetime.now(timezone.utc) - latest).total_seconds() / SECONDS_PER_MINUTE
 
     gap = None
     if len(rows) > 1:
         second_latest = datetime.fromisoformat(rows[1]["datetime"])
         gap = (latest - second_latest).total_seconds() / SECONDS_PER_MINUTE
 
-    if _stale_alert_due(age, COLLECTOR_INTERVAL_MINUTES, HOURLY_CHECK_MINUTES, STALE_REMINDER_MINUTES):
-        if _is_first_stale_alert(age, COLLECTOR_INTERVAL_MINUTES, HOURLY_CHECK_MINUTES):
+    if _stale_alert_due(age):
+        if age < STALE_FIRST_ALERT_UNTIL_MINUTES:
             _notify(f"Meso Market: no new row for {age:.0f} min (last at {latest:%H:%M} UTC).")
         else:
             _notify(
                 f"Meso Market: still no new row after {_duration(age)} (last at {latest:%Y-%m-%d %H:%M} UTC)."
             )
-    elif age < COLLECTOR_INTERVAL_MINUTES and gap is not None and gap >= MISSED_READING_GAP_MINUTES:
+    elif age < STALE_AFTER_MINUTES and gap is not None and gap >= MISSED_READING_GAP_MINUTES:
         _notify(f"Meso Market: collection resumed after a {_duration(gap)} gap.")
 
 
@@ -118,10 +105,11 @@ def _check_forecast(data: dict) -> None:
         _notify("Meso Market: no forecast has been computed yet.")
         return
 
-    age = _minutes_since(forecast["updatedAt"])
+    updated_at = datetime.fromisoformat(forecast["updatedAt"])
+    age = (datetime.now(timezone.utc) - updated_at).total_seconds() / SECONDS_PER_MINUTE
 
-    if _stale_alert_due(age, PRECOMPUTE_INTERVAL_MINUTES, HOURLY_CHECK_MINUTES, STALE_REMINDER_MINUTES):
-        if _is_first_stale_alert(age, PRECOMPUTE_INTERVAL_MINUTES, HOURLY_CHECK_MINUTES):
+    if _stale_alert_due(age):
+        if age < STALE_FIRST_ALERT_UNTIL_MINUTES:
             _notify(f"Meso Market: forecast cache hasn't refreshed in {age:.0f} min.")
         else:
             _notify(f"Meso Market: forecast cache still stale after {_duration(age)}.")
@@ -134,12 +122,13 @@ def _check_snapshot(data: dict) -> None:
         _notify("Meso Market: no forecast snapshot has ever been archived.")
         return
 
-    age = _minutes_since(snapshots[0]["createdAt"])
+    created_at = datetime.fromisoformat(snapshots[0]["createdAt"])
+    age = (datetime.now(timezone.utc) - created_at).total_seconds() / SECONDS_PER_MINUTE
 
-    # Reminds at every daily check: the check interval is the reminder interval.
-    if _stale_alert_due(age, ARCHIVE_INTERVAL_MINUTES, DAILY_CHECK_MINUTES, DAILY_CHECK_MINUTES):
-        if _is_first_stale_alert(age, ARCHIVE_INTERVAL_MINUTES, DAILY_CHECK_MINUTES):
-            _notify(f"Meso Market: no forecast snapshot archived in {_duration(age)}.")
+    # Checked once a day, so every check alerts for as long as one is missing.
+    if age >= SNAPSHOT_STALE_AFTER_MINUTES:
+        if age < SNAPSHOT_FIRST_ALERT_UNTIL_MINUTES:
+            _notify(f"Meso Market: no forecast snapshot archived in {age / MINUTES_PER_HOUR:.0f} hours.")
         else:
             _notify(f"Meso Market: still no forecast snapshot archived after {_duration(age)}.")
 
@@ -158,8 +147,15 @@ def _check_breakpoints(data: dict, subscriptions: list[dict]) -> None:
         return
 
     latest = rows[0]["average"]
+    now = datetime.now(timezone.utc)
 
-    # Level-triggered (see GLOSSARY.md: Triggered, Reminder, Cleared).
+    # Level-triggered, not edge-triggered: alerts as soon as a subscription
+    # is found crossed, even if it was already crossed before the
+    # subscription existed or before the watchdog last ran. Suppressed for
+    # REMINDER_INTERVAL_MINUTES after each alert so a sustained crossing
+    # doesn't spam every hourly check, then repeated as a reminder. Cleared
+    # once the price returns to the healthy side, so the next crossing
+    # alerts immediately rather than waiting out a stale interval.
     for sub in subscriptions:
         high, low = sub["high"], sub["low"]
         crossed_high = high is not None and latest > high
@@ -172,8 +168,10 @@ def _check_breakpoints(data: dict, subscriptions: list[dict]) -> None:
             continue
 
         first_time = last_alerted_at is None
-        if not first_time and _minutes_since(last_alerted_at) < PRICE_ALERT_REMINDER_MINUTES:
-            continue
+        if not first_time:
+            age = (now - datetime.fromisoformat(last_alerted_at)).total_seconds() / SECONDS_PER_MINUTE
+            if age < REMINDER_INTERVAL_MINUTES:
+                continue
 
         if crossed_high:
             verb, threshold = ("is above" if first_time else "is still above"), high
