@@ -70,6 +70,14 @@ _Avoid_: transaction, order, entry
 How much meso a Trade bought or sold; a positive multiple of 100M.
 _Avoid_: Order Size, quantity, volume
 
+**Total**:
+The Maple Points for a whole Trade before any fee: its price per 100M times the number of 100Ms in its Amount.
+_Avoid_: cost, value
+
+**Fee**:
+The 1% of a sell Trade's Total that the market keeps. Buy Trades have no Fee.
+_Avoid_: tax, commission
+
 **Trade Log**:
 A user's list of their own Trades.
 
