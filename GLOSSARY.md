@@ -82,6 +82,10 @@ _Avoid_: tax, commission
 What a sell Trade actually brings in: its Total minus its Fee.
 _Avoid_: proceeds, after-fee total
 
+**Profit**:
+How much better off all of a user's Trades have left them, in Maple Points, compared with not trading: the Net of every sell, minus the Total of every buy, plus the meso bought minus the meso sold valued at the most recent Average. Moves with the market even without new Trades, and can be negative.
+_Avoid_: gains, P&L, return, earnings
+
 **Trade Log**:
 A user's list of their own Trades.
 
