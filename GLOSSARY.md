@@ -20,14 +20,14 @@ The mean traded price over the rolling 100B-meso trade window at the time of a P
 _Avoid_: price (on its own), mean
 
 **Order Size**:
-The total amount of meso being bought or sold: 100M, 1B or 10B.
-_Avoid_: tier, lot
+One of the three amounts of meso the market reports prices for: 100M, 1B or 10B.
+_Avoid_: tier, lot, amount
 
 **Buy Price**:
-What you would pay, per 100M meso, to buy a given Order Size.
+The price per 100M meso, before any fee, to buy a given Order Size.
 
 **Sell Price**:
-What you would earn, per 100M meso, by selling a given Order Size.
+The price per 100M meso, before any fee, for selling a given Order Size.
 
 **Manual Reading**:
 A Price Reading entered by hand rather than posted by the Collector, mostly history from before automated collection began. Shown on the chart but never used to train a Forecast.
@@ -63,8 +63,12 @@ A Forecast Snapshot taken manually by a logged-in user; always owned, and visibl
 ## Trading
 
 **Trade**:
-A user's own record of buying or selling meso at the price they actually got, at a time they choose. Private to that user and never market data: never a Price Reading, never shown on the market chart, never used to train a Forecast. A fixed record of the past: a wrong Trade is deleted and logged again, not edited.
+A user's own record of buying or selling an Amount of meso at a price per 100M (before any fee), at a time they choose. Private to that user and never market data: never a Price Reading, never shown on the market chart, never used to train a Forecast. A fixed record of the past: a wrong Trade is deleted and logged again, not edited.
 _Avoid_: transaction, order, entry
+
+**Amount**:
+How much meso a Trade bought or sold; a positive multiple of 100M.
+_Avoid_: Order Size, quantity, volume
 
 **Trade Log**:
 A user's list of their own Trades.
