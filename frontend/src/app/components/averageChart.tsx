@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { subDays, subMonths, subYears } from "date-fns";
 import {
   Chart as ChartJS,
   Colors,
@@ -21,6 +20,7 @@ import { Line } from "react-chartjs-2";
 import { fetchPrices } from "../actions";
 import { fetchForecast, saveForecastSnapshot, type Forecast } from "../forecastActions";
 import { buildChartData, buildChartOptions, computeSpanDays, type PriceRow } from "./chartConfig";
+import { DEFAULT_WINDOW_LABEL, WINDOWS, windowStart, type WindowLabel } from "./chartWindows";
 
 ChartJS.register(
   Colors,
@@ -34,16 +34,6 @@ ChartJS.register(
   Filler,
 );
 
-const WINDOWS = [
-  { label: "1W", since: (now: Date) => subDays(now, 7) },
-  { label: "1M", since: (now: Date) => subMonths(now, 1) },
-  { label: "3M", since: (now: Date) => subMonths(now, 3) },
-  { label: "1Y", since: (now: Date) => subYears(now, 1) },
-  { label: "All", since: null },
-] as const;
-
-type WindowLabel = (typeof WINDOWS)[number]["label"];
-
 export default function AverageChart({
   initialPrices,
   isLoggedIn,
@@ -51,7 +41,7 @@ export default function AverageChart({
   initialPrices: PriceRow[];
   isLoggedIn: boolean;
 }) {
-  const [selected, setSelected] = useState<WindowLabel>("1M");
+  const [selected, setSelected] = useState<WindowLabel>(DEFAULT_WINDOW_LABEL);
   const [prices, setPrices] = useState(initialPrices);
   const [showForecast, setShowForecast] = useState(false);
   const [forecast, setForecast] = useState<Forecast | null>(null);
@@ -109,8 +99,7 @@ export default function AverageChart({
   }
 
   const now = Date.now();
-  const windowStart = WINDOWS.find((window) => window.label === selected)?.since?.(new Date(now));
-  const axis = { start: windowStart?.getTime(), end: now };
+  const axis = { start: windowStart(selected, new Date(now))?.getTime(), end: now };
 
   return (
     <div className="flex h-full flex-col">
