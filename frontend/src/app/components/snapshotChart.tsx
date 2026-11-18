@@ -39,13 +39,13 @@ export default function SnapshotChart({
   actual: PriceRow[] | null;
 }) {
   const accuracy = actual ? computeAccuracy(snapshot.points, actual) : null;
-  const now = Date.now();
+  const axis = { end: Date.now() };
 
   return (
     <div>
       <div className="relative h-96">
         <Line
-          options={buildChartOptions(computeSpanDays(now, snapshot.history, snapshot.points, actual ?? []), now)}
+          options={buildChartOptions(computeSpanDays(axis, snapshot.history, snapshot.points, actual ?? []), axis)}
           data={buildChartData(snapshot.history, snapshot.points, actual ?? [])}
         />
       </div>

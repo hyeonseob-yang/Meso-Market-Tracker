@@ -109,6 +109,8 @@ export default function AverageChart({
   }
 
   const now = Date.now();
+  const windowStart = WINDOWS.find((window) => window.label === selected)?.since?.(new Date(now));
+  const axis = { start: windowStart?.getTime(), end: now };
 
   return (
     <div className="flex h-full flex-col">
@@ -164,7 +166,7 @@ export default function AverageChart({
       </div>
       <div className="relative min-h-0 flex-1">
         <Line
-          options={buildChartOptions(computeSpanDays(now, prices, visiblePoints), now)}
+          options={buildChartOptions(computeSpanDays(axis, prices, visiblePoints), axis)}
           data={buildChartData(prices, visiblePoints)}
         />
       </div>

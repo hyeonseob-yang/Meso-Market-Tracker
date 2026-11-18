@@ -57,25 +57,40 @@ describe("computeAccuracy", () => {
   });
 });
 
-describe("axis end", () => {
+describe("axis bounds", () => {
   const LAST_READING = "2026-11-11T12:00:00Z";
   const SIX_DAYS_LATER = Date.parse("2026-11-17T12:00:00Z");
+  const ONE_WEEK_BEFORE = Date.parse("2026-11-10T12:00:00Z");
   const OUTAGE_DAYS = 6;
+  const WEEK_DAYS = 7;
+  const HISTORY: PriceRow[] = [
+    { datetime: "2026-11-11T11:00:00Z", average: 400 },
+    { datetime: LAST_READING, average: 401 },
+  ];
 
-  it("extends the x-axis to the given time even when data stops earlier", () => {
-    expect(buildChartOptions(OUTAGE_DAYS, SIX_DAYS_LATER).scales.x.suggestedMax).toBe(SIX_DAYS_LATER);
+  it("extends the x-axis to the end time even when data stops earlier", () => {
+    expect(buildChartOptions(OUTAGE_DAYS, { end: SIX_DAYS_LATER }).scales.x.suggestedMax).toBe(SIX_DAYS_LATER);
+  });
+
+  it("starts the x-axis exactly at the start time when given", () => {
+    const options = buildChartOptions(WEEK_DAYS, { start: ONE_WEEK_BEFORE, end: SIX_DAYS_LATER });
+    expect(options.scales.x.min).toBe(ONE_WEEK_BEFORE);
+  });
+
+  it("leaves the x-axis start to the data when no start is given", () => {
+    expect(buildChartOptions(OUTAGE_DAYS, { end: SIX_DAYS_LATER }).scales.x.min).toBeUndefined();
   });
 
   it("counts the time from the newest data to the axis end in the span", () => {
-    const history: PriceRow[] = [
-      { datetime: "2026-11-11T11:00:00Z", average: 400 },
-      { datetime: LAST_READING, average: 401 },
-    ];
-    expect(computeSpanDays(SIX_DAYS_LATER, history)).toBeCloseTo(OUTAGE_DAYS + 1 / 24);
+    expect(computeSpanDays({ end: SIX_DAYS_LATER }, HISTORY)).toBeCloseTo(OUTAGE_DAYS + 1 / 24);
+  });
+
+  it("spans the whole window when a start is given", () => {
+    expect(computeSpanDays({ start: ONE_WEEK_BEFORE, end: SIX_DAYS_LATER }, HISTORY)).toBe(WEEK_DAYS);
   });
 
   it("has no span when there is no data", () => {
-    expect(computeSpanDays(SIX_DAYS_LATER, [])).toBe(0);
+    expect(computeSpanDays({ end: SIX_DAYS_LATER }, [])).toBe(0);
   });
 });
 
