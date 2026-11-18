@@ -40,7 +40,7 @@ resource "aws_lambda_function" "backend" {
   # precompute/snapshot_daily are invoked directly by EventBridge, bypassing
   # API Gateway's own 30s cap, so this timeout doesn't affect /price's
   # client-facing behavior.
-  timeout     = 300
+  timeout     = 600
   memory_size = 1769
 
   environment {
