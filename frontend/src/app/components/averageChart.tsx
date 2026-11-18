@@ -108,6 +108,8 @@ export default function AverageChart({
     }
   }
 
+  const now = Date.now();
+
   return (
     <div className="flex h-full flex-col">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -162,7 +164,7 @@ export default function AverageChart({
       </div>
       <div className="relative min-h-0 flex-1">
         <Line
-          options={buildChartOptions(computeSpanDays(prices, visiblePoints))}
+          options={buildChartOptions(computeSpanDays(now, prices, visiblePoints), now)}
           data={buildChartData(prices, visiblePoints)}
         />
       </div>

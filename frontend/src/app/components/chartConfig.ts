@@ -8,7 +8,8 @@ export type ForecastPoint = { datetime: string; predicted: number; lower: number
 // Spans this short use bare weekday names, overriding Chart.js's unit auto-detection.
 const WEEKDAY_LABEL_MAX_SPAN_DAYS = 9;
 
-export function buildChartOptions(spanDays: number) {
+// axisEnd (ms): the x-axis reaches at least this time, so data that stops early shows as a gap.
+export function buildChartOptions(spanDays: number, axisEnd: number) {
   const useWeekdayNames = spanDays <= WEEKDAY_LABEL_MAX_SPAN_DAYS;
   return {
     responsive: true,
@@ -37,6 +38,8 @@ export function buildChartOptions(spanDays: number) {
     scales: {
       x: {
         type: "time" as const,
+        // Unlike max, still extends past axisEnd for later points (the Forecast).
+        suggestedMax: axisEnd,
         time: {
           tooltipFormat: "MMM d, yyyy HH:mm",
           unit: useWeekdayNames ? ("day" as const) : undefined,
@@ -68,11 +71,13 @@ export function buildChartOptions(spanDays: number) {
 }
 
 export function computeSpanDays(
+  axisEnd: number,
   history: PriceRow[],
   forecast: ForecastPoint[] = [],
   actual: PriceRow[] = [],
 ): number {
   const times = [...history, ...forecast, ...actual].map((p) => new Date(p.datetime).getTime());
+  if (times.length > 0) times.push(axisEnd);
   if (times.length < 2) return 0;
   return (Math.max(...times) - Math.min(...times)) / (24 * 60 * 60 * 1000);
 }
