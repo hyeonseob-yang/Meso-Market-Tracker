@@ -12,7 +12,12 @@ API_URL = os.environ["TRACKER_API_URL"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
 ALERT_SUBSCRIPTIONS_URL = os.environ["ALERT_SUBSCRIPTIONS_URL"]
 WATCHDOG_SECRET = os.environ["WATCHDOG_SECRET"]
-HEARTBEAT_URL = os.environ["HEARTBEAT_URL"]
+# One external heartbeat check per scheduled run, keyed by the event's `checks` value.
+HEARTBEAT_URLS = {
+    "prices": os.environ["HEARTBEAT_URL_PRICES"],
+    "health": os.environ["HEARTBEAT_URL_HEALTH"],
+    "snapshot": os.environ["HEARTBEAT_URL_SNAPSHOT"],
+}
 
 SECONDS_PER_MINUTE = 60
 MINUTES_PER_HOUR = 60
@@ -185,10 +190,13 @@ def _check_breakpoints(data: dict, subscriptions: list[dict]) -> None:
         _set_notified(sub["id"], True)
 
 
-def _ping_heartbeat() -> None:
+def _ping_heartbeat(checks: str | None) -> None:
+    url = HEARTBEAT_URLS.get(checks)
+    if url is None:
+        return
     # A failed ping must not fail the run: Lambda would retry it and repeat its alerts.
     try:
-        _post(HEARTBEAT_URL, "")
+        _post(url, "")
     except (urllib.error.URLError, OSError) as error:
         print(f"Heartbeat ping failed: {error}")
 
@@ -200,10 +208,10 @@ def handler(event, context):
     staleness, checked after precompute's own :10 run), "snapshot" once
     daily at 01:00 (30 min after the daily archive job itself).
 
-    Pings the external heartbeat only when the run completes; the heartbeat
-    service alerts if the pings stop."""
+    Pings that run's external heartbeat check only when the run completes;
+    the heartbeat service alerts if the pings stop."""
     _run_checks(event)
-    _ping_heartbeat()
+    _ping_heartbeat(event.get("checks"))
 
 
 def _run_checks(event) -> None:

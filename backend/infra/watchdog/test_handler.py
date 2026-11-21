@@ -3,13 +3,17 @@ import os
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import pytest
+
 # handler.py reads these at import time (os.environ[...], no default) - set
 # before importing it.
 os.environ.setdefault("TRACKER_API_URL", "https://example.com/price")
 os.environ.setdefault("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/test")
 os.environ.setdefault("ALERT_SUBSCRIPTIONS_URL", "https://example.com/internal/alert-subscriptions")
 os.environ.setdefault("WATCHDOG_SECRET", "test-watchdog-secret")
-os.environ.setdefault("HEARTBEAT_URL", "https://hc-ping.example.com/test")
+os.environ.setdefault("HEARTBEAT_URL_PRICES", "https://hc-ping.example.com/prices")
+os.environ.setdefault("HEARTBEAT_URL_HEALTH", "https://hc-ping.example.com/health")
+os.environ.setdefault("HEARTBEAT_URL_SNAPSHOT", "https://hc-ping.example.com/snapshot")
 
 import handler  # noqa: E402
 
@@ -87,7 +91,7 @@ def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60, checks=
                     }
                 }
             ).encode()
-        if url == handler.HEARTBEAT_URL:
+        if url in handler.HEARTBEAT_URLS.values():
             return b"OK"
         notifications.append(json.loads(body)["content"])
         return b"{}"
@@ -278,10 +282,17 @@ def _run_breakpoints(rows, subscriptions):
     return notifications, notified_calls
 
 
-def test_completed_run_pings_heartbeat():
+@pytest.mark.parametrize("checks", ["prices", "health", "snapshot"])
+def test_completed_run_pings_its_own_heartbeat(checks):
     with patch("handler._run_checks"), patch("handler._post") as post:
-        handler.handler({"checks": "prices"}, None)
-    post.assert_called_once_with(handler.HEARTBEAT_URL, "")
+        handler.handler({"checks": checks}, None)
+    post.assert_called_once_with(handler.HEARTBEAT_URLS[checks], "")
+
+
+def test_unknown_checks_value_pings_nothing():
+    with patch("handler._run_checks"), patch("handler._post") as post:
+        handler.handler({"checks": "unknown"}, None)
+    post.assert_not_called()
 
 
 def test_crashed_run_does_not_ping_heartbeat():

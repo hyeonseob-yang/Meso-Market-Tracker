@@ -19,5 +19,7 @@ supabase_url = "https://xxxxxxxxxxxxxxxxxxxx.supabase.co"
 # /internal/alert-subscriptions
 watchdog_secret = "your-watchdog-secret"
 
-# Ping URL of the external heartbeat check that alerts if the watchdog stops running
-heartbeat_url = "https://hc-ping.com/your-check-uuid"
+# Ping URLs of the external heartbeat checks that alert if a watchdog run stops
+heartbeat_url_prices   = "https://hc-ping.com/your-prices-check-uuid"
+heartbeat_url_health   = "https://hc-ping.com/your-health-check-uuid"
+heartbeat_url_snapshot = "https://hc-ping.com/your-snapshot-check-uuid"

@@ -75,8 +75,20 @@ variable "supabase_url" {
   type        = string
 }
 
-variable "heartbeat_url" {
-  description = "External heartbeat (dead-man's switch) ping URL the watchdog calls after each completed run"
+variable "heartbeat_url_prices" {
+  description = "External heartbeat ping URL for the watchdog's hourly prices run"
+  type        = string
+  sensitive   = true
+}
+
+variable "heartbeat_url_health" {
+  description = "External heartbeat ping URL for the watchdog's hourly health run"
+  type        = string
+  sensitive   = true
+}
+
+variable "heartbeat_url_snapshot" {
+  description = "External heartbeat ping URL for the watchdog's daily snapshot run"
   type        = string
   sensitive   = true
 }
