@@ -9,6 +9,7 @@ os.environ.setdefault("TRACKER_API_URL", "https://example.com/price")
 os.environ.setdefault("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/test")
 os.environ.setdefault("ALERT_SUBSCRIPTIONS_URL", "https://example.com/internal/alert-subscriptions")
 os.environ.setdefault("WATCHDOG_SECRET", "test-watchdog-secret")
+os.environ.setdefault("HEARTBEAT_URL", "https://hc-ping.example.com/test")
 
 import handler  # noqa: E402
 
@@ -86,6 +87,8 @@ def _run(rows_or_none, forecast_age_minutes=30, snapshot_age_minutes=60, checks=
                     }
                 }
             ).encode()
+        if url == handler.HEARTBEAT_URL:
+            return b"OK"
         notifications.append(json.loads(body)["content"])
         return b"{}"
 
@@ -273,6 +276,26 @@ def _run_breakpoints(rows, subscriptions):
         handler._check_breakpoints({"latestPrices": rows}, subscriptions)
 
     return notifications, notified_calls
+
+
+def test_completed_run_pings_heartbeat():
+    with patch("handler._run_checks"), patch("handler._post") as post:
+        handler.handler({"checks": "prices"}, None)
+    post.assert_called_once_with(handler.HEARTBEAT_URL, "")
+
+
+def test_crashed_run_does_not_ping_heartbeat():
+    with patch("handler._run_checks", side_effect=RuntimeError("boom")), patch("handler._post") as post:
+        try:
+            handler.handler({"checks": "prices"}, None)
+        except RuntimeError:
+            pass
+    post.assert_not_called()
+
+
+def test_failed_heartbeat_ping_does_not_fail_the_run():
+    with patch("handler._run_checks"), patch("handler._post", side_effect=OSError("connection refused")):
+        handler.handler({"checks": "prices"}, None)
 
 
 def test_no_subscriptions_sends_no_notification():

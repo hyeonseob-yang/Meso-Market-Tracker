@@ -12,6 +12,7 @@ API_URL = os.environ["TRACKER_API_URL"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
 ALERT_SUBSCRIPTIONS_URL = os.environ["ALERT_SUBSCRIPTIONS_URL"]
 WATCHDOG_SECRET = os.environ["WATCHDOG_SECRET"]
+HEARTBEAT_URL = os.environ["HEARTBEAT_URL"]
 
 SECONDS_PER_MINUTE = 60
 MINUTES_PER_HOUR = 60
@@ -184,12 +185,28 @@ def _check_breakpoints(data: dict, subscriptions: list[dict]) -> None:
         _set_notified(sub["id"], True)
 
 
+def _ping_heartbeat() -> None:
+    # A failed ping must not fail the run: Lambda would retry it and repeat its alerts.
+    try:
+        _post(HEARTBEAT_URL, "")
+    except (urllib.error.URLError, OSError) as error:
+        print(f"Heartbeat ping failed: {error}")
+
+
 def handler(event, context):
     """Three separate EventBridge rules invoke this with a different
     `checks` value: "prices" at :10 (time-sensitive - Price Alerts should
     fire soon after the Average moves), "health" at :30 (forecast
     staleness, checked after precompute's own :10 run), "snapshot" once
-    daily at 01:00 (30 min after the daily archive job itself)."""
+    daily at 01:00 (30 min after the daily archive job itself).
+
+    Pings the external heartbeat only when the run completes; the heartbeat
+    service alerts if the pings stop."""
+    _run_checks(event)
+    _ping_heartbeat()
+
+
+def _run_checks(event) -> None:
     try:
         body = json.loads(_post(API_URL, QUERY))
     except (urllib.error.URLError, OSError, ValueError) as error:

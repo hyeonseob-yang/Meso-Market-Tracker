@@ -75,6 +75,12 @@ variable "supabase_url" {
   type        = string
 }
 
+variable "heartbeat_url" {
+  description = "External heartbeat (dead-man's switch) ping URL the watchdog calls after each completed run"
+  type        = string
+  sensitive   = true
+}
+
 variable "watchdog_secret" {
   description = "Shared secret required (x-watchdog-secret header) to call /internal/alert-subscriptions - held by both the main backend Lambda and the watchdog Lambda"
   type        = string

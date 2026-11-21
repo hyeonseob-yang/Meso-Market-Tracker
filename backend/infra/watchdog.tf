@@ -50,6 +50,7 @@ resource "aws_lambda_function" "watchdog" {
       DISCORD_WEBHOOK_URL     = var.discord_webhook_url
       ALERT_SUBSCRIPTIONS_URL = "${aws_apigatewayv2_stage.default.invoke_url}/internal/alert-subscriptions"
       WATCHDOG_SECRET         = var.watchdog_secret
+      HEARTBEAT_URL           = var.heartbeat_url
     }
   }
 
