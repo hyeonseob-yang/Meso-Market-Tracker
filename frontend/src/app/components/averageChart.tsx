@@ -21,6 +21,7 @@ import { fetchPrices } from "../actions";
 import { fetchForecast, saveForecastSnapshot, type Forecast } from "../forecastActions";
 import { buildChartData, buildChartOptions, computeSpanDays, type PriceRow } from "./chartConfig";
 import { DEFAULT_WINDOW_LABEL, WINDOWS, windowStart, type WindowLabel } from "./chartWindows";
+import LastReading from "./lastReading";
 
 ChartJS.register(
   Colors,
@@ -152,6 +153,9 @@ export default function AverageChart({
             {showForecast ? "Hide Forecast" : "Show Forecast"}
           </button>
         </div>
+      </div>
+      <div className="mb-2">
+        <LastReading datetime={prices[prices.length - 1]?.datetime} />
       </div>
       <div className="relative min-h-0 flex-1">
         <Line
