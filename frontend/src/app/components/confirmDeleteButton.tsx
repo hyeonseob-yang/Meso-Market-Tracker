@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 
-const DELETE_BUTTON_CLASS =
-  "rounded px-3 py-1 text-sm font-medium bg-white text-red-600 hover:bg-red-50 disabled:opacity-50";
-
-// Delete button that asks "Delete this <itemName>?" inline before calling onConfirm.
+// Delete button that opens a modal "Delete <itemName>?" dialog before calling onConfirm.
+// Native <dialog> + showModal(): dims the page, traps focus, and closes on Esc.
 export default function ConfirmDeleteButton({
   itemName,
   isDeleting,
@@ -15,44 +13,42 @@ export default function ConfirmDeleteButton({
   isDeleting: boolean;
   onConfirm: () => void;
 }) {
-  const [isConfirming, setIsConfirming] = useState(false);
-
-  if (isDeleting) {
-    return (
-      <button type="button" disabled className={DELETE_BUTTON_CLASS}>
-        Deleting…
-      </button>
-    );
-  }
-
-  if (!isConfirming) {
-    return (
-      <button type="button" onClick={() => setIsConfirming(true)} className={DELETE_BUTTON_CLASS}>
-        Delete
-      </button>
-    );
-  }
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   return (
-    <span className="flex items-center gap-2">
-      <span className="text-sm text-gray-700">Delete this {itemName}?</span>
+    <>
       <button
         type="button"
-        onClick={() => {
-          setIsConfirming(false);
-          onConfirm();
-        }}
-        className="rounded px-3 py-1 text-sm font-medium bg-red-600 text-white hover:bg-red-700"
+        onClick={() => dialogRef.current?.showModal()}
+        disabled={isDeleting}
+        className="rounded px-3 py-1 text-sm font-medium bg-white text-red-600 hover:bg-red-50 disabled:opacity-50"
       >
-        Delete
+        {isDeleting ? "Deleting…" : "Delete"}
       </button>
-      <button
-        type="button"
-        onClick={() => setIsConfirming(false)}
-        className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
-      >
-        Cancel
-      </button>
-    </span>
+      {/* m-auto: Tailwind's base styles zero the margin that centres a modal dialog. */}
+      <dialog ref={dialogRef} className="m-auto w-full max-w-sm rounded-lg p-6 shadow-xl backdrop:bg-black/40">
+        <h3 className="text-lg font-medium text-gray-900">Delete {itemName}?</h3>
+        <p className="mt-2 text-sm text-gray-600">This can&apos;t be undone.</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            className="rounded px-3 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              dialogRef.current?.close();
+              onConfirm();
+            }}
+            className="rounded px-3 py-1 text-sm font-medium bg-red-600 text-white hover:bg-red-700"
+          >
+            Delete
+          </button>
+        </div>
+      </dialog>
+    </>
   );
 }
