@@ -6,10 +6,13 @@ import { useRef } from "react";
 // Native <dialog> + showModal(): dims the page, traps focus, and closes on Esc.
 export default function ConfirmDeleteButton({
   itemName,
+  itemLabel,
   isDeleting,
   onConfirm,
 }: {
   itemName: string;
+  // Identifies which item, e.g. a Price Alert's name; shown quoted in the title.
+  itemLabel?: string;
   isDeleting: boolean;
   onConfirm: () => void;
 }) {
@@ -27,7 +30,10 @@ export default function ConfirmDeleteButton({
       </button>
       {/* m-auto: Tailwind's base styles zero the margin that centres a modal dialog. */}
       <dialog ref={dialogRef} className="m-auto w-full max-w-sm rounded-lg p-6 shadow-xl backdrop:bg-black/40">
-        <h3 className="text-lg font-medium text-gray-900">Delete {itemName}?</h3>
+        <h3 className="text-lg font-medium text-gray-900">
+          Delete {itemName}
+          {itemLabel !== undefined && <> &ldquo;{itemLabel}&rdquo;</>}?
+        </h3>
         <p className="mt-2 text-sm text-gray-600">This can&apos;t be undone.</p>
         <div className="mt-6 flex justify-end gap-2">
           <button

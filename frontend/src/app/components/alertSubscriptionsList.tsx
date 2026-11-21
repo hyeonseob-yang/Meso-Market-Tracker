@@ -147,6 +147,7 @@ export default function AlertSubscriptionsList({
                     </button>
                     <ConfirmDeleteButton
                       itemName="Price Alert"
+                      itemLabel={sub.name}
                       isDeleting={deletingId === sub.id}
                       onConfirm={() => handleDelete(sub.id)}
                     />
