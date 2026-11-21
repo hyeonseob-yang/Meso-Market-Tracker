@@ -76,14 +76,13 @@ export default function SnapshotsList({ initialSnapshots }: { initialSnapshots: 
           const first = snapshot.points[0];
           const last = snapshot.points[snapshot.points.length - 1];
           const isExpanded = expandedId === snapshot.id;
+          const createdLabel = format(toUtcDisplayDate(snapshot.createdAt), "MMM d, yyyy HH:mm 'UTC'");
 
           return (
             <div key={snapshot.id} className="rounded border border-gray-200 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900">
-                    {format(toUtcDisplayDate(snapshot.createdAt), "MMM d, yyyy HH:mm 'UTC'")}
-                  </p>
+                  <p className="font-medium text-gray-900">{createdLabel}</p>
                   <p className="text-sm text-gray-600">
                     {horizonLabel(snapshot)} · {snapshot.historyCount} history points ·{" "}
                     {snapshot.points.length} forecast points
@@ -105,6 +104,7 @@ export default function SnapshotsList({ initialSnapshots }: { initialSnapshots: 
                   {snapshot.userId !== null && (
                     <ConfirmDeleteButton
                       itemName="Forecast Snapshot"
+                      itemLabel={createdLabel}
                       isDeleting={deletingId === snapshot.id}
                       onConfirm={() => handleDelete(snapshot.id)}
                     />
