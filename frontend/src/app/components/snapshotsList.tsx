@@ -7,6 +7,7 @@ import { fetchPrices } from "../actions";
 import { toUtcDisplayDate } from "../dateDisplay";
 import { deleteForecastSnapshot, listForecastSnapshots, type ForecastSnapshotSummary } from "../forecastActions";
 import type { PriceRow } from "./chartConfig";
+import ConfirmDeleteButton from "./confirmDeleteButton";
 import SnapshotChart from "./snapshotChart";
 import {
   actualForSnapshot,
@@ -102,14 +103,11 @@ export default function SnapshotsList({ initialSnapshots }: { initialSnapshots: 
                   </button>
                   {/* Listed owned snapshots are always the viewer's own; ownerless ones are Archived. */}
                   {snapshot.userId !== null && (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(snapshot.id)}
-                      disabled={deletingId === snapshot.id}
-                      className="rounded px-3 py-1 text-sm font-medium bg-white text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {deletingId === snapshot.id ? "Deleting…" : "Delete"}
-                    </button>
+                    <ConfirmDeleteButton
+                      itemName="Forecast Snapshot"
+                      isDeleting={deletingId === snapshot.id}
+                      onConfirm={() => handleDelete(snapshot.id)}
+                    />
                   )}
                 </div>
               </div>

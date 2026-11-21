@@ -8,6 +8,7 @@ import {
   updateAlertSubscription,
   type AlertSubscription,
 } from "../alertActions";
+import ConfirmDeleteButton from "./confirmDeleteButton";
 
 export default function AlertSubscriptionsList({
   initialSubscriptions,
@@ -144,14 +145,11 @@ export default function AlertSubscriptionsList({
                     >
                       Edit
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(sub.id)}
-                      disabled={deletingId === sub.id}
-                      className="rounded px-3 py-1 text-sm font-medium bg-white text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {deletingId === sub.id ? "Deleting…" : "Delete"}
-                    </button>
+                    <ConfirmDeleteButton
+                      itemName="Price Alert"
+                      isDeleting={deletingId === sub.id}
+                      onConfirm={() => handleDelete(sub.id)}
+                    />
                   </div>
                 </div>
                 {deleteError?.id === sub.id && <p className="mt-2 text-sm text-red-600">{deleteError.message}</p>}
