@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { text: "Chart", href: "/" },
   { text: "Snapshots", href: "/snapshots" },
   { text: "Alerts", href: "/alerts" },
+  { text: "Trades", href: "/trades" },
 ];
 
 export default function NavDrawer({
