@@ -9,7 +9,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 import auth
 from app import app
-from models import PriceRecord
+from models import PriceRecord, TradeSide
+from trades import build_trade
 
 PRICES_QUERY = """
 query {
@@ -687,3 +688,61 @@ def test_delete_alert_subscription_rejects_without_auth_header(mock_delete, clie
 def test_delete_alert_subscription_scopes_to_the_logged_in_user(mock_delete, client):
     _gql_as_user(client, DELETE_ALERT_SUBSCRIPTION_MUTATION, {"id": 1}, sub="user-456")
     mock_delete.assert_called_once_with("user-456", 1)
+
+
+RECORD_TRADE_MUTATION = """
+mutation($side: TradeSide!, $amount100m: Int!, $price: Int!, $tradedAt: String!, $note: String!) {
+  recordTrade(side: $side, amount100m: $amount100m, price: $price, tradedAt: $tradedAt, note: $note) {
+    id side amount100m price tradedAt note total fee net
+  }
+}
+"""
+DELETE_TRADE_MUTATION = "mutation($id: Int!) { deleteTrade(id: $id) }"
+MY_TRADES_QUERY = "query { myTrades { id side total } }"
+MY_TRADE_PROFIT_QUERY = "query { myTradeProfit { profit average averageAt } }"
+TRADE_TIME = "2026-11-20T12:00:00+00:00"
+TRADE_VARS = {"side": "SELL", "amount100m": 10, "price": 60, "tradedAt": TRADE_TIME, "note": ""}
+SELL_TRADE = build_trade(7, TradeSide.SELL, 10, 60, TRADE_TIME, "")
+BUY_TRADE = build_trade(8, TradeSide.BUY, 100, 50, TRADE_TIME, "")
+
+
+@patch("schema.db_insert_trade", return_value=SELL_TRADE)
+def test_record_trade_rejects_logged_out_visitor(mock_insert, client):
+    body = json.loads(gql(client, RECORD_TRADE_MUTATION, TRADE_VARS).data)
+    assert any("must be logged in" in e["message"] for e in body["errors"])
+    mock_insert.assert_not_called()
+
+
+@patch("schema.db_insert_trade", return_value=SELL_TRADE)
+def test_record_trade_scopes_to_the_logged_in_user_and_returns_derived_figures(mock_insert, client):
+    body = json.loads(_gql_as_user(client, RECORD_TRADE_MUTATION, TRADE_VARS, sub="user-456").data)
+    mock_insert.assert_called_once_with("user-456", TradeSide.SELL, 10, 60, TRADE_TIME, "")
+    trade = body["data"]["recordTrade"]
+    assert (trade["side"], trade["total"], trade["net"]) == ("SELL", 600, pytest.approx(594))
+
+
+@patch("schema.get_trades_for_user", return_value=[SELL_TRADE])
+def test_my_trades_scopes_to_the_logged_in_user(mock_get, client):
+    body = json.loads(_gql_as_user(client, MY_TRADES_QUERY, {}, sub="user-456").data)
+    mock_get.assert_called_once_with("user-456")
+    assert body["data"]["myTrades"][0]["id"] == 7
+
+
+@patch("schema.get_trades_for_user", return_value=[BUY_TRADE, SELL_TRADE])
+@patch("schema.get_latest_average", return_value=(55, TRADE_TIME))
+def test_my_trade_profit_uses_the_latest_average(mock_average, mock_trades, client):
+    body = json.loads(_gql_as_user(client, MY_TRADE_PROFIT_QUERY, {}).data)
+    assert body["data"]["myTradeProfit"] == {"profit": pytest.approx(544), "average": 55, "averageAt": TRADE_TIME}
+
+
+@patch("schema.get_trades_for_user", return_value=[SELL_TRADE])
+@patch("schema.get_latest_average", return_value=None)
+def test_my_trade_profit_is_null_without_any_average(mock_average, mock_trades, client):
+    body = json.loads(_gql_as_user(client, MY_TRADE_PROFIT_QUERY, {}).data)
+    assert body["data"]["myTradeProfit"] is None
+
+
+@patch("schema.db_delete_trade", return_value=True)
+def test_delete_trade_scopes_to_the_logged_in_user(mock_delete, client):
+    _gql_as_user(client, DELETE_TRADE_MUTATION, {"id": 7}, sub="user-456")
+    mock_delete.assert_called_once_with("user-456", 7)

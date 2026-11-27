@@ -1,12 +1,15 @@
 import logging
 import os
 import re
+from datetime import datetime, timedelta, timezone
+
 import psycopg2
 import psycopg2.errors
 from psycopg2.extras import Json
 from dotenv import load_dotenv
 
-from models import AlertSubscription, Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord
+from models import AlertSubscription, Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord, Trade, TradeSide
+from trades import build_trade
 
 logger = logging.getLogger(__name__)
 
@@ -496,3 +499,102 @@ def set_alert_subscription_notified(id: int, notified: bool) -> None:
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error("set_alert_subscription_notified failed: %s", _sanitize(str(error)))
         raise RuntimeError("Unable to update the alert subscription right now.") from error
+
+
+# Allows for the browser's clock running slightly ahead of the server's when
+# a Trade's time defaults to "now".
+TRADE_FUTURE_TOLERANCE = timedelta(minutes=5)
+
+
+def _validate_trade(amount_100m: int, price: int, traded_at: str) -> None:
+    if amount_100m < 1:
+        raise ValueError("Amount must be at least 100M meso.")
+    if price < 1:
+        raise ValueError("Price must be a whole number of Maple Points above zero.")
+    try:
+        when = datetime.fromisoformat(traded_at)
+    except ValueError:
+        raise ValueError("That doesn't look like a valid time.")
+    if when.tzinfo is None:
+        raise ValueError("The time must include a timezone.")
+    if when > datetime.now(timezone.utc) + TRADE_FUTURE_TOLERANCE:
+        raise ValueError("A Trade can't be in the future.")
+
+
+def _row_to_trade(row) -> Trade:
+    return build_trade(row[0], TradeSide(row[1]), row[2], row[3], row[4].isoformat(), row[5])
+
+
+def insert_trade(user_id: str, side: TradeSide, amount_100m: int, price: int, traded_at: str, note: str) -> Trade:
+    _validate_trade(amount_100m, price, traded_at)
+    sql = """INSERT INTO trade(user_id, side, amount_100m, price, traded_at, note)
+             VALUES(%s, %s, %s, %s, %s, %s)
+             RETURNING id, side, amount_100m, price, traded_at, note"""
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (user_id, side.value, amount_100m, price, traded_at, note))
+            row = cur.fetchone()
+            conn.commit()
+    except (psycopg2.DataError, psycopg2.IntegrityError) as error:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.error("insert_trade rejected invalid data: %s", _sanitize(str(error)))
+        raise ValueError("Trade data is invalid.") from error
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("insert_trade failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to log the Trade right now.") from error
+
+    if not row:
+        raise RuntimeError("Unable to log the Trade right now.")
+
+    return _row_to_trade(row)
+
+
+def get_trades_for_user(user_id: str) -> list[Trade]:
+    sql = """SELECT id, side, amount_100m, price, traded_at, note FROM trade
+             WHERE user_id = %s ORDER BY traded_at DESC, id DESC"""
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (user_id,))
+            return [_row_to_trade(row) for row in cur.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("get_trades_for_user failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to fetch your Trades right now.") from error
+
+
+def delete_trade(user_id: str, id: int) -> bool:
+    sql = "DELETE FROM trade WHERE id = %s AND user_id = %s"
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql, (id, user_id))
+            deleted = cur.rowcount > 0
+            conn.commit()
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("delete_trade failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to delete the Trade right now.") from error
+
+    return deleted
+
+
+def get_latest_average() -> tuple[int, str] | None:
+    """The Average and time of the most recent Price Reading that has one."""
+    sql = "SELECT average, datetime FROM price WHERE average IS NOT NULL ORDER BY datetime DESC LIMIT 1"
+
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            row = cur.fetchone()
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error("get_latest_average failed: %s", _sanitize(str(error)))
+        raise RuntimeError("Unable to fetch the latest Average right now.") from error
+
+    return (row[0], row[1].isoformat()) if row else None

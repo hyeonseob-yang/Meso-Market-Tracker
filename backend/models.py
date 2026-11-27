@@ -1,4 +1,6 @@
 import dataclasses
+from enum import Enum
+
 import strawberry
 from strawberry.scalars import JSON
 
@@ -53,6 +55,32 @@ class AlertSubscription:
     name: str
     high: float | None
     low: float | None
+
+
+@strawberry.enum
+class TradeSide(Enum):
+    BUY = "buy"
+    SELL = "sell"
+
+
+@strawberry.type
+class Trade:
+    id: int
+    side: TradeSide
+    amount_100m: int  # Amount in 100M-meso units
+    price: int  # Maple Points per 100M, before any fee
+    traded_at: str
+    note: str
+    total: int
+    fee: float | None  # sells only
+    net: float | None  # sells only
+
+
+@strawberry.type
+class TradeProfit:
+    profit: float
+    average: int  # the latest Average Profit was valued at
+    average_at: str
 
 
 @strawberry.type

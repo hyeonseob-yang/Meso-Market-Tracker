@@ -12,20 +12,24 @@ from database import (
     create_alert_subscription,
     delete_alert_subscription,
     delete_forecast_snapshot,
+    delete_trade,
     get_alert_subscriptions,
     get_alert_subscriptions_for_user,
     get_forecast_cache,
     get_forecast_snapshots,
     get_forecast_training_prices,
+    get_latest_average,
     get_latest_prices,
     get_prices,
+    get_trades_for_user,
     insert_forecast_snapshot,
     insert_price,
+    insert_trade,
     set_alert_subscription_notified,
     update_alert_subscription,
     upsert_forecast_cache,
 )
-from models import PriceInput
+from models import PriceInput, TradeSide
 
 VALID_PRICE = PriceInput(
     average=450,
@@ -697,3 +701,81 @@ def test_set_alert_subscription_notified_false_clears_it():
     sql, params = cur.execute.call_args[0]
     assert params == (False, 1)
     conn.commit.assert_called_once()
+
+
+TRADE_TIME = datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc)
+TRADE_ROW = (7, "sell", 10, 60, TRADE_TIME, "first sale")
+
+
+def test_insert_trade_stores_the_side_value_and_returns_derived_figures():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchone.return_value = TRADE_ROW
+
+    with patch("database._get_conn", return_value=conn):
+        trade = insert_trade("user-123", TradeSide.SELL, 10, 60, TRADE_TIME.isoformat(), "first sale")
+
+    sql, params = cur.execute.call_args[0]
+    assert params == ("user-123", "sell", 10, 60, TRADE_TIME.isoformat(), "first sale")
+    assert (trade.id, trade.total, trade.net) == (7, 600, pytest.approx(594))
+    conn.commit.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "amount_100m, price, traded_at, message",
+    [
+        (0, 60, TRADE_TIME.isoformat(), "at least 100M"),
+        (10, 0, TRADE_TIME.isoformat(), "above zero"),
+        (10, 60, "not a time", "valid time"),
+        (10, 60, "2026-11-20T12:00:00", "timezone"),
+        (10, 60, "2999-01-01T00:00:00+00:00", "future"),
+    ],
+)
+def test_insert_trade_rejects_invalid_input_before_touching_the_database(amount_100m, price, traded_at, message):
+    with patch("database._get_conn") as get_conn:
+        with pytest.raises(ValueError, match=message):
+            insert_trade("user-123", TradeSide.BUY, amount_100m, price, traded_at, "")
+    get_conn.assert_not_called()
+
+
+def test_get_trades_for_user_scopes_to_the_user_newest_first():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = [TRADE_ROW]
+
+    with patch("database._get_conn", return_value=conn):
+        trades = get_trades_for_user("user-123")
+
+    sql, params = cur.execute.call_args[0]
+    assert params == ("user-123",)
+    assert "ORDER BY traded_at DESC" in sql
+    assert trades[0].side is TradeSide.SELL
+
+
+def test_delete_trade_only_matches_the_owners_row():
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.rowcount = 0
+
+    with patch("database._get_conn", return_value=conn):
+        assert delete_trade("user-123", 7) is False
+
+    sql, params = cur.execute.call_args[0]
+    assert "user_id = %s" in sql
+    assert params == (7, "user-123")
+
+
+def test_get_latest_average_returns_none_without_any_average():
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
+
+    with patch("database._get_conn", return_value=conn):
+        assert get_latest_average() is None
+
+
+def test_get_latest_average_returns_value_and_time():
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (55, TRADE_TIME)
+
+    with patch("database._get_conn", return_value=conn):
+        assert get_latest_average() == (55, TRADE_TIME.isoformat())

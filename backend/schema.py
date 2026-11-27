@@ -10,16 +10,31 @@ from database import (
     create_alert_subscription as db_create_alert_subscription,
     delete_alert_subscription as db_delete_alert_subscription,
     delete_forecast_snapshot as db_delete_forecast_snapshot,
+    delete_trade as db_delete_trade,
     get_alert_subscriptions_for_user,
     get_forecast_cache,
     get_forecast_snapshots,
+    get_latest_average,
     get_latest_prices,
     get_prices,
+    get_trades_for_user,
     insert_forecast_snapshot,
     insert_price,
+    insert_trade as db_insert_trade,
     update_alert_subscription as db_update_alert_subscription,
 )
-from models import AlertSubscription, Forecast, ForecastSnapshotRecord, PriceInput, PriceRecord, User
+from models import (
+    AlertSubscription,
+    Forecast,
+    ForecastSnapshotRecord,
+    PriceInput,
+    PriceRecord,
+    Trade,
+    TradeProfit,
+    TradeSide,
+    User,
+)
+from trades import compute_profit
 from strawberry.scalars import JSON
 
 PRICE_FIELDS = ("average", "buy100M", "buy1B", "buy10B", "sell100M", "sell1B", "sell10B")
@@ -93,6 +108,18 @@ class Mutation:
         user = _require_user(info)
         return db_delete_alert_subscription(user["id"], id)
 
+    @strawberry.mutation
+    def record_trade(
+        self, info: Info, side: TradeSide, amount_100m: int, price: int, traded_at: str, note: str = ""
+    ) -> Trade:
+        user = _require_user(info)
+        return db_insert_trade(user["id"], side, amount_100m, price, traded_at, note)
+
+    @strawberry.mutation
+    def delete_trade(self, info: Info, id: int) -> bool:
+        user = _require_user(info)
+        return db_delete_trade(user["id"], id)
+
 
 @strawberry.type
 class Query:
@@ -134,6 +161,22 @@ class Query:
     def my_alert_subscriptions(self, info: Info) -> list[AlertSubscription]:
         user = _require_user(info)
         return get_alert_subscriptions_for_user(user["id"])
+
+    @strawberry.field
+    def my_trades(self, info: Info) -> list[Trade]:
+        user = _require_user(info)
+        return get_trades_for_user(user["id"])
+
+    @strawberry.field
+    def my_trade_profit(self, info: Info) -> TradeProfit | None:
+        """Null when no Price Reading has an Average yet."""
+        user = _require_user(info)
+        latest = get_latest_average()
+        if latest is None:
+            return None
+        average, average_at = latest
+        profit = compute_profit(get_trades_for_user(user["id"]), average)
+        return TradeProfit(profit=profit, average=average, average_at=average_at)
 
 
 def _check_write_auth(info: Info) -> None:
