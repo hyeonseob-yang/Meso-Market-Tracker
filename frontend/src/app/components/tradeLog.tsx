@@ -12,7 +12,7 @@ import {
   type TradeProfit,
   type TradeSide,
 } from "../tradeActions";
-import { formatAmount, formatSigned, parseAmountInBillions } from "../tradeFormat";
+import { formatAmount, formatSigned, parseAmount100m } from "../tradeFormat";
 import ConfirmDeleteButton from "./confirmDeleteButton";
 import LocalTime from "./localTime";
 
@@ -69,9 +69,9 @@ export default function TradeLog({
     e.preventDefault();
     setFormError(null);
 
-    const amount100m = parseAmountInBillions(amount);
+    const amount100m = parseAmount100m(amount);
     if (amount100m === null) {
-      setFormError("Amount must be a positive multiple of 0.1B (100M).");
+      setFormError("Amount must be a whole number of 100M units above zero.");
       return;
     }
     const priceValue = Number(price);
@@ -152,10 +152,10 @@ export default function TradeLog({
           <input
             type="number"
             required
-            min="0.1"
-            step="0.1"
-            placeholder="Amount in B (e.g. 2.5)"
-            aria-label="Amount in billions of meso"
+            min="1"
+            step="1"
+            placeholder="Amount (× 100M)"
+            aria-label="Amount in units of 100M meso"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-1/2 rounded border border-gray-300 px-3 py-2"

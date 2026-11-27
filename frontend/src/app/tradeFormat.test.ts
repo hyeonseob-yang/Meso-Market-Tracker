@@ -1,28 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { formatAmount, formatSigned, parseAmountInBillions } from "./tradeFormat";
+import { formatAmount, formatSigned, parseAmount100m } from "./tradeFormat";
 
-describe("parseAmountInBillions", () => {
+describe("parseAmount100m", () => {
   it.each([
-    ["2.5", 25],
-    ["0.1", 1],
-    ["10", 100],
-    ["0.3", 3],
-  ])("parses %s billion into %i units of 100M", (input, units) => {
-    expect(parseAmountInBillions(input)).toBe(units);
+    ["1", 1],
+    ["25", 25],
+    ["1000", 1000],
+  ])("parses %s into %i units of 100M", (input, units) => {
+    expect(parseAmount100m(input)).toBe(units);
   });
 
-  it.each(["", "0", "-1", "0.05", "2.55", "abc"])("rejects %j", (input) => {
-    expect(parseAmountInBillions(input)).toBeNull();
+  it.each(["", "0", "-1", "2.5", "abc"])("rejects %j", (input) => {
+    expect(parseAmount100m(input)).toBeNull();
   });
 });
 
 describe("formatAmount", () => {
   it.each([
-    [1, "100M"],
-    [5, "500M"],
-    [10, "1B"],
-    [25, "2.5B"],
+    [1, "1 × 100M"],
+    [25, "25 × 100M"],
+    [1000, "1,000 × 100M"],
   ])("formats %i units as %s", (units, text) => {
     expect(formatAmount(units)).toBe(text);
   });
