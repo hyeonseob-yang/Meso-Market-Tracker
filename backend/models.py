@@ -72,13 +72,13 @@ class Trade:
     traded_at: str
     note: str
     total: int
-    fee: float | None  # sells only
-    net: float | None  # sells only
+    fee: int | None  # sells only
+    net: int | None  # sells only
 
 
 @strawberry.type
 class TradeProfit:
-    profit: float
+    profit: int
     average: int  # the latest Average Profit was valued at
     average_at: str
 

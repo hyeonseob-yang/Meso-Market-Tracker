@@ -1,7 +1,7 @@
 import pytest
 
 from models import TradeSide
-from trades import SELL_FEE_RATE, build_trade, compute_profit
+from trades import build_trade, compute_profit
 
 TRADED_AT = "2026-11-20T12:00:00+00:00"
 ONE_B_IN_100M = 10
@@ -23,15 +23,19 @@ def test_buy_total_is_price_times_amount_and_has_no_fee():
 def test_sell_fee_is_one_percent_of_total_and_net_is_the_rest():
     trade = _trade(TradeSide.SELL, ONE_B_IN_100M, 60)
     assert trade.total == 600
-    assert trade.fee == pytest.approx(600 * SELL_FEE_RATE)
-    assert trade.net == pytest.approx(594)
+    assert trade.fee == 6
+    assert trade.net == 594
 
 
-def test_fee_keeps_decimals():
-    # 1% of 1,250 is 12.5 - not rounded until the game's rounding is known.
-    trade = _trade(TradeSide.SELL, 1, 1250)
-    assert trade.fee == pytest.approx(12.5)
-    assert trade.net == pytest.approx(1237.5)
+@pytest.mark.parametrize("price, fee, net", [(412, 4, 408), (467, 4, 463)])
+def test_fee_rounds_down_to_a_whole_maple_point(price, fee, net):
+    trade = _trade(TradeSide.SELL, 1, price)
+    assert (trade.fee, trade.net) == (fee, net)
+
+
+def test_fee_is_exact_when_one_percent_is_whole():
+    trade = _trade(TradeSide.SELL, 1, 1100)
+    assert trade.fee == 11
 
 
 def test_profit_values_held_meso_at_the_latest_average():

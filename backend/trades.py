@@ -1,15 +1,16 @@
 """Derived Trade figures (see GLOSSARY.md: Total, Fee, Net, Profit). Fee is
-computed on read, never stored, and kept exact (no rounding) until the game's
-rounding is known."""
+computed on read, never stored, and rounded down to a whole Maple Point like
+the game's."""
 
 from models import Trade, TradeSide
 
-SELL_FEE_RATE = 0.01
+SELL_FEE_PERCENT = 1
+PERCENT = 100
 
 
 def build_trade(id: int, side: TradeSide, amount_100m: int, price: int, traded_at: str, note: str) -> Trade:
     total = price * amount_100m
-    fee = total * SELL_FEE_RATE if side is TradeSide.SELL else None
+    fee = total * SELL_FEE_PERCENT // PERCENT if side is TradeSide.SELL else None
     net = total - fee if fee is not None else None
     return Trade(
         id=id,

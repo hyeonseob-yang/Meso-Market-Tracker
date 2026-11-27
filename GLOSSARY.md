@@ -75,7 +75,7 @@ The Maple Points for a whole Trade before any fee: its price per 100M times the 
 _Avoid_: cost, value
 
 **Fee**:
-The 1% of a sell Trade's Total that the market keeps. Buy Trades have no Fee.
+The 1% of a sell Trade's Total that the market keeps, rounded down to a whole Maple Point. Buy Trades have no Fee.
 _Avoid_: tax, commission
 
 **Net**:
